@@ -1,5 +1,5 @@
 class World {
-    static WATER_LEVEL = 14;
+    static WATER_LEVEL = 15;
     static WORLD_HEIGHT = 32;
 
     static generate(width, height) {
@@ -33,7 +33,7 @@ class World {
         var depth = 1;
         for (var i = 0; i < depth; i++) {
             console.log("Generating dirt; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
-            tiles.unshift(...World.#generateDirt(tiles));
+            tiles.push(...World.#generateDirt(tiles));
         }
 
         console.log("World generated; %sms", performance.now() - start);
@@ -78,6 +78,7 @@ class World {
 
     /**
      * @param {Tile[]} tiles
+     * @returns {Tile[]}
      */
     static #generateDirt(tiles) {
         var dirtTiles = [];
@@ -92,5 +93,34 @@ class World {
         });
 
         return dirtTiles;
+    }
+}
+
+class Camera {
+    static #position = { x: 0, z: 0 };
+
+    /**
+     * Move the camera
+     * @param {number} x 
+     * @param {number} z 
+     */
+    static moveBy(x = 0, z = 0) {
+        Camera.moveTo(Camera.getPosition().x + x, Camera.getPosition().z + z);
+    }
+
+    /**
+     * Move the camera
+     * @param {number} x 
+     * @param {number} z 
+     */
+    static moveTo(x = Camera.#position.x, z = Camera.#position.z) {
+        Camera.#position = { x, z };
+    }
+    
+    /**
+     * @returns {{x: number, z: number}} The position of the camera
+     */
+    static getPosition() {
+        return Camera.#position;
     }
 }
