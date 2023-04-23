@@ -2,7 +2,13 @@ function init() {
     window.canvas = document.querySelector("canvas");
     window.ctx = canvas.getContext("2d");
 
+    ctx.imageSmoothingEnabled = false;
+
     onresize();
+
+    const MAX_X = 32;
+    const MAX_Z = Math.ceil(innerHeight / (innerWidth / 3) * MAX_X);
+    TileManager.generate(MAX_X, MAX_Z);
 
     render(ctx);
 }
@@ -10,17 +16,6 @@ function init() {
 window.onresize = () => {
     canvas.width = innerWidth;
     canvas.height = innerHeight;
-
-    const MAX_X = 16;
-    const MAX_Y = Math.ceil(innerHeight / (innerWidth / 2) * MAX_X);
-
-    TileManager.clear();
-    for (var y = -1; y < MAX_Y; y += 0.5) {
-        for (var x = -1; x < MAX_X; x += 0.5) {
-            if ((x % 1 != 0 && y % 1 == 0) || (x % 1 == 0 && y % 1 != 0)) continue;
-            TileManager.getTiles().push(new Tile(x, y));
-        }
-    }
 }
 
 function render() {
