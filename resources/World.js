@@ -1,30 +1,38 @@
-class World {
+import { Tile } from "./Tile.js";
+import { drawText } from "./index.js";
+
+export default class World {
     static WATER_LEVEL = 15;
     static WORLD_HEIGHT = 32;
+    static MAX_X = 64;
+    static MAX_Z = 64;
 
-    static generate(width, height) {
+    static generate(tiles = []) {
         console.log("Generating World");
+        drawText("Generating World");
 
         var start = performance.now();
-        var tiles = [];
 
-        for (var z = -1; z <= height; z += 0.5) {
-            for (var x = -1; x <= width; x += 0.5) {
+        for (var z = -1; z <= World.MAX_Z; z += 0.5) {
+            for (var x = -1; x <= World.MAX_X; x += 0.5) {
                 if ((x % 1 != 0 && z % 1 == 0) || (x % 1 == 0 && z % 1 != 0)) continue;
                 var y = Math.round(Math.random()*World.WORLD_HEIGHT);
                 tiles.push(new Tile(x, y, z));
             }
         }    
 
-        var depth = 5;
+        var depth = 10;
         for (var i = 0; i < depth; i++) {
             console.log("Interpolating world; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
+            drawText("Interpolating world; Depth: " + (i+1) + "/" + depth + "; " + (performance.now() - start) + "ms");
             tiles = World.#interpolate(tiles);
+            tiles.forEach(t => t.render(window.ctx));
         }
 
         var depth = 5;
         for (var i = 0; i < depth; i++) {
             console.log("Interpolating water; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
+            drawText("Interpolating water; Depth: " + (i+1) + "/" + depth + "; " + (performance.now() - start) + "ms");
             var water = tiles.filter(t => t.type == "WATER");
             tiles = tiles.filter(t => t.type != "WATER");
             tiles.push(...World.#interpolateWater(water));
@@ -33,6 +41,7 @@ class World {
         var depth = 1;
         for (var i = 0; i < depth; i++) {
             console.log("Generating dirt; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
+            drawText("Generating dirt; Depth: " + (i+1) + "/" + depth + "; " + (performance.now() - start) + "ms");
             tiles.push(...World.#generateDirt(tiles));
         }
 
@@ -83,7 +92,7 @@ class World {
     static #generateDirt(tiles) {
         var dirtTiles = [];
         tiles.forEach(tile => {
-            if (tiles.filter(x => x.imagePath == Images.Tiles.DIRT).some(t => t.y == tile.y && t.x == tile.x && t.z == tile.z)) return;
+            if (tiles.filter(x => x.type == "DIRT").some(t => t.y == tile.y && t.x == tile.x && t.z == tile.z)) return;
 
             // The dirt needs to be visible if there's a tile SW or SE which
             // has a y-position which is 2 (or more) lower than the current tile's
@@ -96,7 +105,7 @@ class World {
     }
 }
 
-class Camera {
+export class Camera {
     static #position = { x: 0, z: 0 };
 
     /**
@@ -114,6 +123,11 @@ class Camera {
      * @param {number} z 
      */
     static moveTo(x = Camera.#position.x, z = Camera.#position.z) {
+        var size = Math.floor(innerWidth / 16);
+
+        x = Math.min(size / Math.sqrt(3) * World.MAX_X - innerWidth, Math.max(size / Math.sqrt(3) / (-2), x));
+        z = Math.min((size * (2/3) * World.MAX_Z - (World.WORLD_HEIGHT * size / 6) - 2*innerHeight) / 2 - size * (2/3) / 2, Math.max(size * (2/3) - (World.WATER_LEVEL * size / 6), z));
+
         Camera.#position = { x, z };
     }
     

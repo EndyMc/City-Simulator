@@ -1,14 +1,41 @@
-function init() {
+import Images from "./Images.js";
+import TileManager from "./Tile.js";
+import World, { Camera } from "./World.js";
+window.camera = Camera;
+window.init = async () => {
     window.canvas = document.querySelector("canvas");
     window.ctx = canvas.getContext("2d");
 
     onresize();
+    window.ctx.font = "5vh Arial";
 
-    const MAX_X = 64;
-    const MAX_Z = 64;
-    TileManager.generate(MAX_X, MAX_Z);
+    drawText("Loading Textures");
+
+    var textures = [ ...Object.values(Images.Tiles), Object.values(Images.Houses) ];
+    for (var i = 0; i < textures.length; i++) {
+        var texture = textures[i];
+
+        drawText("Loading Texture: " + (i+1) + "/" + (textures.length));
+        console.log("Loading Textures; %s/%s", i+1, textures.length);
+        await Images.getImage(texture);
+    }
+    
+    TileManager.generate();
 
     render(ctx);
+}
+
+var textQueue = [];
+export function drawText(text) {
+    textQueue.push(text);
+
+    var texts = new Array(...textQueue);
+    textQueue = [];
+    texts.forEach(text => {
+        var w = window.ctx.measureText(text).width;
+        window.ctx.clearRect(0, 0, innerWidth, innerHeight);
+        window.ctx.fillText(text, (innerWidth - w) / 2, innerHeight / 2);
+    });
 }
 
 window.onresize = () => {
