@@ -1,22 +1,14 @@
 import World, { Camera } from "./World.js";
 import Images from "./Images.js";
 
-export class Tile {
+export class House {
     /**
      * @param {number} x 
      * @param {number} y 
      */
-    constructor(x, y, z, type) {
-        if (type == undefined) {
-            if (y <= World.WATER_LEVEL) {
-                type = "WATER";
-            } else {
-                type = "GRASS";
-            }
-        }
-
+    constructor(x, y, z, type = "VARIANT_1") {
         this.type = type;
-        this.imagePath = Images.Tiles[type];
+        this.imagePath = Images.Houses[type];
         
         this.size = Math.floor(innerWidth / 16);
 
@@ -29,7 +21,7 @@ export class Tile {
     }
 
     /**
-     * Render this tile
+     * Render this house
      * @param {CanvasRenderingContext2D} ctx 
      */
     render(ctx) {
@@ -45,21 +37,21 @@ export class Tile {
     }
 }
 
-export default class TileManager {
-    static #tiles = [];
+export default class HouseManager {
+    static #houses = [];
 
     /**
-     * @returns {Tile[]} A copy of the tiles array
+     * @returns {House[]} A copy of the houses array
      */
-    static getTiles() {
-        return TileManager.#tiles;
+    static getHouses() {
+        return HouseManager.#houses;
     }
 
-    static async generate() {
-        TileManager.#tiles = await World.generate();
+    static generate() {
+        HouseManager.#houses = World.generate();
     }
 
     static clear() {
-        TileManager.#tiles = [];
+        HouseManager.#houses = [];
     }
 }

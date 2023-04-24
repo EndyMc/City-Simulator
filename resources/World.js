@@ -1,3 +1,4 @@
+import { House } from "./House.js";
 import { Tile } from "./Tile.js";
 import { drawText } from "./index.js";
 
@@ -7,9 +8,8 @@ export default class World {
     static MAX_X = 64;
     static MAX_Z = 64;
 
-    static generate(tiles = []) {
+    static async generate(tiles = []) {
         console.log("Generating World");
-        drawText("Generating World");
 
         var start = performance.now();
 
@@ -26,7 +26,6 @@ export default class World {
             console.log("Interpolating world; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
             drawText("Interpolating world; Depth: " + (i+1) + "/" + depth + "; " + (performance.now() - start) + "ms");
             tiles = World.#interpolate(tiles);
-            tiles.forEach(t => t.render(window.ctx));
         }
 
         var depth = 5;
@@ -44,6 +43,10 @@ export default class World {
             drawText("Generating dirt; Depth: " + (i+1) + "/" + depth + "; " + (performance.now() - start) + "ms");
             tiles.push(...World.#generateDirt(tiles));
         }
+
+        console.log("Spawning houses; %sms", performance.now() - start);
+        drawText("Spawning houses; " + (performance.now() - start) + "ms");
+        tiles.push(...World.#spawnHouses(tiles));
 
         console.log("World generated; %sms", performance.now() - start);
 
@@ -102,6 +105,25 @@ export default class World {
         });
 
         return dirtTiles;
+    }
+
+    static #spawnHouses(tiles) {
+        var houseTiles = [];
+        tiles.filter(x => x.type == "GRASS").forEach(tile => {
+            if (Math.random() > 0.95) houseTiles.push(new House(tile.x, tile.y + 1, tile.z, "VARIANT_1"));
+        });
+
+        var depth = 5;
+        for (var i = 0; i < depth; i++) {
+            console.log("Spawning houses; Depth: %s/%s", i+1, depth);
+            drawText("Spawning houses; Depth: " + (i+1) + "/" + depth);
+            houseTiles = houseTiles.filter(tile => {
+                var neighbours = houseTiles.filter(t => t.x >= tile.x - 2 && t.x <= tile.x + 2 && t.z >= tile.z - 2 && t.z <= tile.z + 2);
+                return neighbours.length > 3;
+            });
+        }
+
+        return houseTiles;
     }
 }
 

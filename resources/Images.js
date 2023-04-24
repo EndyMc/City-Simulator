@@ -2,7 +2,7 @@ export default class Images {
     static Tiles = {
         GRASS: "/images/grass.png",
         DIRT: "/images/dirt.png",
-        WATER: "/images/water.png"
+        WATER: "/images/water_no_border.png"
     }
 
     static Houses = {

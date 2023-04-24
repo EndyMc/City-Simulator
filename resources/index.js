@@ -1,28 +1,28 @@
 import Images from "./Images.js";
 import TileManager from "./Tile.js";
-import World, { Camera } from "./World.js";
-window.camera = Camera;
+import { Camera } from "./World.js";
+
 window.init = async () => {
     window.canvas = document.querySelector("canvas");
-    window.ctx = canvas.getContext("2d");
-
+    var ctx = window.canvas.getContext("2d");
+    
     onresize();
-    window.ctx.font = "5vh Arial";
-
+    
     drawText("Loading Textures");
-
+    
     var textures = [ ...Object.values(Images.Tiles), Object.values(Images.Houses) ];
     for (var i = 0; i < textures.length; i++) {
         var texture = textures[i];
-
+        
         drawText("Loading Texture: " + (i+1) + "/" + (textures.length));
         console.log("Loading Textures; %s/%s", i+1, textures.length);
         await Images.getImage(texture);
     }
-    
-    TileManager.generate();
 
-    render(ctx);
+    drawText("Generating World");
+    await TileManager.generate();
+
+    render();
 }
 
 var textQueue = [];
@@ -30,11 +30,13 @@ export function drawText(text) {
     textQueue.push(text);
 
     var texts = new Array(...textQueue);
+    var ctx = window.canvas.getContext("2d");
+    ctx.font = "5vh Arial";
     textQueue = [];
     texts.forEach(text => {
-        var w = window.ctx.measureText(text).width;
-        window.ctx.clearRect(0, 0, innerWidth, innerHeight);
-        window.ctx.fillText(text, (innerWidth - w) / 2, innerHeight / 2);
+        var w = ctx.measureText(text).width;
+        ctx.clearRect(0, 0, innerWidth, innerHeight);
+        ctx.fillText(text, (innerWidth - w) / 2, innerHeight / 2);
     });
 }
 
@@ -53,7 +55,8 @@ window.onkeyup = (evt) => {
 }
 
 var previousTimestamp = performance.now();
-function render(timestamp) {
+function render(timestamp = performance.now()) {
+    var ctx = window.canvas.getContext("2d");
     var delta = timestamp - previousTimestamp;
     previousTimestamp = timestamp;
 
