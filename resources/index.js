@@ -4,7 +4,6 @@ import { Camera } from "./World.js";
 
 window.init = async () => {
     window.canvas = document.querySelector("canvas");
-    var ctx = window.canvas.getContext("2d");
     
     onresize();
     
@@ -20,9 +19,12 @@ window.init = async () => {
     }
 
     drawText("Generating World");
-    await TileManager.generate();
+    requestIdleCallback(async () => {
+        await TileManager.generate();
+        Camera.moveTo(-Infinity, -Infinity);
 
-    render();
+        render();
+    }, { timeout: 100 });
 }
 
 var textQueue = [];
@@ -58,23 +60,33 @@ class Cursor {
     static #lastKnownPosition = { x: 0, y: 0 };
     static #selectedTile;
 
-    static onmousemove(evt) {
+    static _onmousemove(evt) {
         Cursor.#lastKnownPosition = { x: evt.clientX, y: evt.clientY };
         Cursor.updateSelectedTile();
     }
     
+    /**
+     * @returns {Tile}
+     */
     static getSelectedTile() {
         return Cursor.#selectedTile;
     }
     
     static updateSelectedTile() {
-        Cursor.#selectedTile = TileManager.getHighlightedTile(Cursor.#lastKnownPosition.x, Cursor.#lastKnownPosition.y);        
+        Cursor.#selectedTile = TileManager.getHighlightedTile(Cursor.#lastKnownPosition.x, Cursor.#lastKnownPosition.y);
+        Cursor.#selectedTile.selected = true;
         console.log(Cursor.#selectedTile);
+    }
+
+    /**
+     * @returns {{x: number, y: number}}
+     */
+    static getPosition() {
+        return Cursor.#lastKnownPosition;
     }
 }
 
-window.tilemanager = TileManager;
-window.onmousemove = Cursor.onmousemove;
+window.onmousemove = Cursor._onmousemove;
 
 var previousTimestamp = performance.now();
 function render(timestamp = performance.now()) {
@@ -103,6 +115,13 @@ function render(timestamp = performance.now()) {
     }
 
     TileManager.getTiles().forEach(x => x.render(ctx));
+    ctx.save();
+    ctx.fillStyle = "blue";
+    var position = Cursor.getPosition();
+    ctx.beginPath();
+    ctx.arc(position.x, position.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
     Debugging.render(ctx);
 }
 

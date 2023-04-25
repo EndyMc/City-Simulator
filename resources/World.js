@@ -2,8 +2,13 @@ import { Tile, House } from "./Drawable.js";
 import { drawText } from "./index.js";
 
 export default class World {
-    static WATER_LEVEL = 15;
-    static WORLD_HEIGHT = 32;
+    // Set this higher for more hilly terrain
+    static WORLD_HEIGHT = 64;
+
+    // This needs to be this, else it'll either flood the map or just be one tile of water
+    static WATER_LEVEL = Math.round(World.WORLD_HEIGHT / 2) - 1;
+
+    // Size of the map, if these are set much higher the browser won't be able to handle it.
     static MAX_X = 64;
     static MAX_Z = 64;
 
@@ -23,34 +28,33 @@ export default class World {
         // The higher the depth value is, the flatter the world is
         // A value of 10 seems to work well with the type of game I'm making
         // The depth value makes the world generation take about 3.5 seconds longer for each step (3.5 seconds * 10 = 35 seconds)
-        var depth = 10;
+        var depth = 15;
         for (var i = 0; i < depth; i++) {
             console.log("Interpolating world; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
-            drawText("Interpolating world; Depth: " + (i+1) + "/" + depth + "; " + (performance.now() - start) + "ms");
-            tiles = World.#interpolate(tiles);
+            drawText("Interpolating world; Depth: " + (i+1) + "/" + depth);
+            await new Promise((resolve) => { requestIdleCallback(() => { tiles = World.#interpolate(tiles); resolve(); }, { timeout: 100 }); });
         }
 
-        var depth = 5;
-        for (var i = 0; i < depth; i++) {
-            console.log("Interpolating water; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
-            drawText("Interpolating water; Depth: " + (i+1) + "/" + depth + "; " + (performance.now() - start) + "ms");
-            var water = tiles.filter(t => t.type == "WATER");
-            tiles = tiles.filter(t => t.type != "WATER");
-            tiles.push(...World.#interpolateWater(water));
-        }
+        tiles.forEach(tile => {
+            if (tile.type == "WATER") tile.y = World.WATER_LEVEL;
+        })
 
-        var depth = 5;
+        var depth = World.WORLD_HEIGHT;
+        var dirt = undefined;
         for (var i = 0; i < depth; i++) {
             console.log("Generating dirt; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
-            drawText("Generating dirt; Depth: " + (i+1) + "/" + depth + "; " + (performance.now() - start) + "ms");
-            tiles.push(...World.#generateDirt(tiles, i));
+            drawText("Generating dirt; Depth: " + (i+1) + "/" + depth);
+            await new Promise((resolve) => { requestIdleCallback(() => { dirt = World.#generateDirt(tiles, dirt); tiles.push(...dirt); resolve(); }, { timeout: 100 }); });
         }
 
         console.log("Spawning houses; %sms", performance.now() - start);
-        drawText("Spawning houses; " + (performance.now() - start) + "ms");
-        tiles.push(...World.#spawnHouses(tiles));
+        drawText("Spawning houses");
+        await new Promise((resolve) => { requestIdleCallback(() => { tiles.push(...World.#spawnHouses(tiles)); resolve(); }, { timeout: 100 }); });
 
         console.log("World generated; %sms", performance.now() - start);
+
+        // Move the tiles so that they're on screen
+        tiles.forEach(tile => tile.y -= World.WATER_LEVEL);
 
         // Make sure that tiles which are higher up on the screen are rendered first
         // Also make sure that tiles with a lower y-position are rendered first
@@ -76,30 +80,12 @@ export default class World {
     }
 
     /**
-     * @param {Tile[]} tiles 
-     * @returns {Tile[]}
-     */
-    static #interpolateWater(tiles) {
-        var interpolatedTiles = [];
-        tiles.filter(t => t.type == "WATER").forEach(tile => {
-            var neighbours = tiles.filter(t => t.x >= tile.x - 1 && t.x <= tile.x + 1 && t.z >= tile.z - 1 && t.z <= tile.z + 1);
-            var height = Math.max(...neighbours.map(t => t.y));
-            interpolatedTiles.push(new Tile(tile.x, height, tile.z));
-        });
-
-        return interpolatedTiles;
-    }
-
-    /**
      * @param {Tile[]} tiles
      * @returns {Tile[]}
      */
-    static #generateDirt(tiles, depth) {
+    static #generateDirt(tiles, dirt) {
         var dirtTiles = [];
-        var firstDepth = depth == 0;
-        tiles
-            .filter(x => (x.type == "GRASS" && firstDepth) || (x.type == "DIRT" && !firstDepth))
-            .forEach(tile => {
+        (dirt || tiles.filter(x => x.type == "GRASS")).forEach(tile => {
             // Check whether or not there's already a tile under this
             if (tiles.some(t => t.y == tile.y - 1 && t.z == tile.z && t.x == tile.x)) return;
 
@@ -154,7 +140,7 @@ export class Camera {
         var size = Math.floor(innerWidth / 16);
 
         x = Math.min(size / Math.sqrt(3) * World.MAX_X - innerWidth, Math.max(size / Math.sqrt(3) / (-2), x));
-        z = Math.min((size * (2/3) * World.MAX_Z - (World.WORLD_HEIGHT * size / 6) - 2*innerHeight) / 2 - size * (2/3) / 2, Math.max(size * (2/3) - (World.WATER_LEVEL * size / 6), z));
+        z = Math.min((size * (2/3) * World.MAX_Z - ((World.WORLD_HEIGHT-World.WATER_LEVEL) * size / 6) - 2*innerHeight) / 2 - size * (2/3) / 2, Math.max(size * (2/3) - ((World.WATER_LEVEL - World.WATER_LEVEL) * size / 6), z));
 
         Camera.#position = { x, z };
     }

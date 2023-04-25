@@ -32,7 +32,13 @@ export class Drawable {
         var position = this.getScreenPosition();
         if (position == undefined) return;
 
+        ctx.save();
+        if (this.selected == true) {
+            ctx.globalAlpha = 0.2;
+        }
+            
         ctx.drawImage(Images.getImageFromCache(this.imagePath), position.x, position.y);
+        ctx.restore();
     }
 
     /**
@@ -109,6 +115,8 @@ export default class TileManager {
                 // Don't check houses and other such entities
                 return false;
             }
+
+            tile.selected = false;
 
             return tile.contains(screenX, screenY);
         }).sort((a, b) => b.y - a.y).sort((a, b) => b.z - a.z)[0];
