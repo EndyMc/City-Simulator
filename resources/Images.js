@@ -1,12 +1,12 @@
 export default class Images {
     static Tiles = {
-        GRASS: "/images/grass.png",
-        DIRT: "/images/dirt.png",
-        WATER: "/images/water_no_border.png"
+        GRASS: "images/grass.png",
+        DIRT: "images/dirt.png",
+        WATER: "images/water_no_border.png"
     }
 
     static Houses = {
-        VARIANT_1: "/images/house.png"
+        VARIANT_1: "images/house.png"
     }
 
     static #imageCache = {};

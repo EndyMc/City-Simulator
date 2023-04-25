@@ -1,5 +1,5 @@
 import Images from "./Images.js";
-import TileManager from "./Tile.js";
+import TileManager from "./Drawable.js";
 import { Camera } from "./World.js";
 
 window.init = async () => {
@@ -54,6 +54,28 @@ window.onkeyup = (evt) => {
     window.keys[evt.key] = undefined;
 }
 
+class Cursor {
+    static #lastKnownPosition = { x: 0, y: 0 };
+    static #selectedTile;
+
+    static onmousemove(evt) {
+        Cursor.#lastKnownPosition = { x: evt.clientX, y: evt.clientY };
+        Cursor.updateSelectedTile();
+    }
+    
+    static getSelectedTile() {
+        return Cursor.#selectedTile;
+    }
+    
+    static updateSelectedTile() {
+        Cursor.#selectedTile = TileManager.getHighlightedTile(Cursor.#lastKnownPosition.x, Cursor.#lastKnownPosition.y);        
+        console.log(Cursor.#selectedTile);
+    }
+}
+
+window.tilemanager = TileManager;
+window.onmousemove = Cursor.onmousemove;
+
 var previousTimestamp = performance.now();
 function render(timestamp = performance.now()) {
     var ctx = window.canvas.getContext("2d");
@@ -68,12 +90,16 @@ function render(timestamp = performance.now()) {
     var velocity = 1/2 * delta;
     if (window.keys["w"] != undefined) {
         Camera.moveBy(0, -velocity);
+        Cursor.updateSelectedTile();
     } if (window.keys["a"] != undefined) {
         Camera.moveBy(-velocity, 0);
+        Cursor.updateSelectedTile();
     } if (window.keys["s"] != undefined) {
         Camera.moveBy(0, velocity);
+        Cursor.updateSelectedTile();
     } if (window.keys["d"] != undefined) {
         Camera.moveBy(velocity, 0);
+        Cursor.updateSelectedTile();
     }
 
     TileManager.getTiles().forEach(x => x.render(ctx));

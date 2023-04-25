@@ -1,5 +1,4 @@
-import { House } from "./House.js";
-import { Tile } from "./Tile.js";
+import { Tile, House } from "./Drawable.js";
 import { drawText } from "./index.js";
 
 export default class World {
@@ -21,7 +20,10 @@ export default class World {
             }
         }    
 
-        var depth = 10;
+        // The higher the depth value is, the flatter the world is
+        // A value of 10 seems to work well with the type of game I'm making
+        // The depth value makes the world generation take about 3.5 seconds longer for each step (3.5 seconds * 10 = 35 seconds)
+        var depth = 3;
         for (var i = 0; i < depth; i++) {
             console.log("Interpolating world; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
             drawText("Interpolating world; Depth: " + (i+1) + "/" + depth + "; " + (performance.now() - start) + "ms");
@@ -37,11 +39,11 @@ export default class World {
             tiles.push(...World.#interpolateWater(water));
         }
 
-        var depth = 1;
+        var depth = 5;
         for (var i = 0; i < depth; i++) {
             console.log("Generating dirt; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
             drawText("Generating dirt; Depth: " + (i+1) + "/" + depth + "; " + (performance.now() - start) + "ms");
-            tiles.push(...World.#generateDirt(tiles));
+            tiles.push(...World.#generateDirt(tiles, i));
         }
 
         console.log("Spawning houses; %sms", performance.now() - start);
@@ -92,14 +94,18 @@ export default class World {
      * @param {Tile[]} tiles
      * @returns {Tile[]}
      */
-    static #generateDirt(tiles) {
+    static #generateDirt(tiles, depth) {
         var dirtTiles = [];
-        tiles.forEach(tile => {
-            if (tiles.filter(x => x.type == "DIRT").some(t => t.y == tile.y && t.x == tile.x && t.z == tile.z)) return;
+        var firstDepth = depth == 0;
+        tiles
+            .filter(x => (x.type == "GRASS" && firstDepth) || (x.type == "DIRT" && !firstDepth))
+            .forEach(tile => {
+            // Check whether or not there's already a tile under this
+            if (tiles.some(t => t.y == tile.y - 1 && t.z == tile.z && t.x == tile.x)) return;
 
             // The dirt needs to be visible if there's a tile SW or SE which
             // has a y-position which is 2 (or more) lower than the current tile's
-            if (tiles.some(t => t.y <= tile.y - 2 && (t.x == tile.x + 0.5 || t.x == tile.x - 0.5 || t.z == tile.z - 0.5 || t.z == tile.z + 0.5))) {
+            if (tiles.some(t => t.y <= tile.y - 2 && t.z == tile.z + 0.5 && (t.x == tile.x + 0.5 || t.x == tile.x - 0.5))) {
                 dirtTiles.push(new Tile(tile.x, tile.y - 1, tile.z, "DIRT"));
             }
         });
