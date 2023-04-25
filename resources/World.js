@@ -23,7 +23,7 @@ export default class World {
         // The higher the depth value is, the flatter the world is
         // A value of 10 seems to work well with the type of game I'm making
         // The depth value makes the world generation take about 3.5 seconds longer for each step (3.5 seconds * 10 = 35 seconds)
-        var depth = 3;
+        var depth = 10;
         for (var i = 0; i < depth; i++) {
             console.log("Interpolating world; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
             drawText("Interpolating world; Depth: " + (i+1) + "/" + depth + "; " + (performance.now() - start) + "ms");
