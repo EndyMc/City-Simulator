@@ -74,8 +74,10 @@ class Cursor {
     
     static updateSelectedTile() {
         Cursor.#selectedTile = TileManager.getHighlightedTile(Cursor.#lastKnownPosition.x, Cursor.#lastKnownPosition.y);
-        Cursor.#selectedTile.selected = true;
-        console.log(Cursor.#selectedTile);
+        if (Cursor.#selectedTile != undefined) {
+            Cursor.#selectedTile.selected = true;
+            console.log(Cursor.#selectedTile);
+        }
     }
 
     /**
@@ -90,6 +92,9 @@ window.onmousemove = Cursor._onmousemove;
 
 var previousTimestamp = performance.now();
 function render(timestamp = performance.now()) {
+    /**
+     * @type {CanvasRenderingContext2D}
+     */
     var ctx = window.canvas.getContext("2d");
     var delta = timestamp - previousTimestamp;
     previousTimestamp = timestamp;
@@ -115,13 +120,6 @@ function render(timestamp = performance.now()) {
     }
 
     TileManager.getTiles().forEach(x => x.render(ctx));
-    ctx.save();
-    ctx.fillStyle = "blue";
-    var position = Cursor.getPosition();
-    ctx.beginPath();
-    ctx.arc(position.x, position.y, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
     Debugging.render(ctx);
 }
 

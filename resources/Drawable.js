@@ -32,13 +32,22 @@ export class Drawable {
         var position = this.getScreenPosition();
         if (position == undefined) return;
 
-        ctx.save();
-        if (this.selected == true) {
-            ctx.globalAlpha = 0.2;
-        }
-            
         ctx.drawImage(Images.getImageFromCache(this.imagePath), position.x, position.y);
-        ctx.restore();
+
+        if (this.selected) {
+            var { x, y } = this.getMiddlePoint();
+            var bounds = this.getBoundingBox();
+            ctx.save();
+                ctx.fillStyle = "#444";
+                ctx.beginPath();
+                    ctx.moveTo(bounds.x1, y);
+                    ctx.lineTo(x, bounds.y1);
+                    ctx.lineTo(bounds.x2, y);
+                    ctx.lineTo(x, position.y + this.width / Math.sqrt(3));
+                ctx.closePath();
+                ctx.fill();
+            ctx.restore();
+        }
     }
 
     /**
@@ -55,13 +64,58 @@ export class Drawable {
     }
 
     /**
+     * @returns {{ x1: number, y1: number, x2: number, y2: number }} The four corners of this
+     */
+    getBoundingBox() {
+        var position = this.getScreenPosition();
+        return {
+            x1: (position?.x) || -1,
+            y1: (position?.y) || -1,
+            x2: (position?.x + this.width) || -1,
+            y2: (position?.y + this.height) || -1
+        }
+    }
+
+    /**
      * @param {number} screenX 
      * @param {number} screenY 
      * @returns {boolean}
      */
     contains(screenX, screenY) {
+        var bounds = this.getBoundingBox();
+        return bounds.x1 <= screenX && bounds.x2 >= screenX && bounds.y1 <= screenY && bounds.y2 >= screenY;
+    }
+
+    /**
+     * @returns {{ x: number, y: number }} The middle of the top portion of the tile
+     */
+    getMiddlePoint() {
         var position = this.getScreenPosition();
-        return position != undefined && position.x <= screenX && position.x + this.width >= screenX && position.y <= screenY && position.y + this.height >= screenY;
+
+        return {
+            x: (position?.x + this.width / 2) || -1,
+            y: (position?.y + this.width / Math.sqrt(3) / 2) || -1
+        }
+    }
+
+    /**
+     * @param {number} screenX 
+     * @param {number} screenY 
+     * @returns {number} distance from the given point to the middle of this drawable
+     */
+    distance(screenX, screenY) {
+        var position = this.getScreenPosition();
+
+        // This is undefined if the object is offscreen
+        if (position == undefined) return Infinity;
+
+        // The point in the middle of this drawable
+        var { x, y } = this.getMiddlePoint();
+
+        // Pythagoras
+        var distance = Math.hypot(x - screenX, y - screenY);
+
+        return distance;
     }
 }
 
@@ -110,7 +164,8 @@ export default class TileManager {
     }
 
     static getHighlightedTile(screenX, screenY) {
-        return TileManager.#tiles.filter(tile => {
+        // Get candidates for which tiles are the most likely to be the one the user hovers
+        var candidates = TileManager.#tiles.filter(tile => {
             if (!(tile instanceof Tile)) {
                 // Don't check houses and other such entities
                 return false;
@@ -119,6 +174,17 @@ export default class TileManager {
             tile.selected = false;
 
             return tile.contains(screenX, screenY);
-        }).sort((a, b) => b.y - a.y).sort((a, b) => b.z - a.z)[0];
+        })
+            // Sort by y-coordinate
+            .sort((a, b) => b.y - a.y)
+            
+            // Sort by z-coordinate
+            .sort((a, b) => b.z - a.z)
+
+            // Sort by distance from mouse
+            .sort((a, b) => a.distance(screenX, screenY) - b.distance(screenX, screenY));
+
+        // Return to most likely one
+        return candidates[0];
     }
 }

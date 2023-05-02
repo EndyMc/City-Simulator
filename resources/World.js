@@ -28,7 +28,7 @@ export default class World {
         // The higher the depth value is, the flatter the world is
         // A value of 10 seems to work well with the type of game I'm making
         // The depth value makes the world generation take about 3.5 seconds longer for each step (3.5 seconds * 10 = 35 seconds)
-        var depth = 15;
+        var depth = 10;
         for (var i = 0; i < depth; i++) {
             console.log("Interpolating world; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
             drawText("Interpolating world; Depth: " + (i+1) + "/" + depth);
@@ -73,6 +73,7 @@ export default class World {
         tiles.forEach(tile => {
             var neighbours = tiles.filter(t => t.x >= tile.x - 1 && t.x <= tile.x + 1 && t.z >= tile.z - 1 && t.z <= tile.z + 1);
             var averageHeight = neighbours.reduce((t, a) => t + a.y, 0) / neighbours.length;
+
             interpolatedTiles.push(new Tile(tile.x, Math.round(averageHeight), tile.z));
         });
 
