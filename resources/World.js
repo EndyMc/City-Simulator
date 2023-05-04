@@ -1,4 +1,5 @@
 import { Tile, House } from "./Drawable.js";
+import { LayerManager } from "./Layer.js";
 import { drawText } from "./index.js";
 
 export default class World {
@@ -122,6 +123,7 @@ export default class World {
 
 export class Camera {
     static #position = { x: 0, z: 0 };
+    static #zoom = 1;
 
     /**
      * Move the camera
@@ -138,10 +140,10 @@ export class Camera {
      * @param {number} z 
      */
     static moveTo(x = Camera.#position.x, z = Camera.#position.z) {
-        var size = Math.floor(innerWidth / 16);
+        var size = Math.floor(clientWidth / 16) * Camera.zoom;
 
-        x = Math.min(size / Math.sqrt(3) * World.MAX_X - innerWidth, Math.max(size / Math.sqrt(3) / (-2), x));
-        z = Math.min((size * (2/3) * World.MAX_Z - ((World.WORLD_HEIGHT-World.WATER_LEVEL) * size / 6) - 2*innerHeight) / 2 - size * (2/3) / 2, Math.max(size * (2/3) - ((World.WATER_LEVEL - World.WATER_LEVEL) * size / 6), z));
+//        x = Math.min(size / Math.sqrt(3) * World.MAX_X - clientWidth, Math.max(size / Math.sqrt(3) / (-2), x));
+//        z = Math.min((size * (2/3) * World.MAX_Z - ((World.WORLD_HEIGHT-World.WATER_LEVEL) * size / 6) - 2*clientHeight) / 2 - size * (2/3) / 2, Math.max(size * (2/3) - ((World.WATER_LEVEL - World.WATER_LEVEL) * size / 6), z));
 
         Camera.#position = { x, z };
     }
@@ -151,5 +153,22 @@ export class Camera {
      */
     static getPosition() {
         return Camera.#position;
+    }
+
+    static zoomOut() {
+        Camera.zoom /= 1.1;
+    }
+
+    static zoomIn() {
+        Camera.zoom *= 1.1;
+    }
+
+    static get zoom() {
+        return Camera.#zoom;
+    }
+
+    static set zoom(value) {
+        Camera.#zoom = value;
+        LayerManager.shouldRenderLayer("world");
     }
 }

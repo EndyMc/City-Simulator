@@ -6,3 +6,9 @@ body {
     background-color: #fff;
     overflow: hidden;
 }
+
+canvas {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}

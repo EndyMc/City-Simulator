@@ -1,3 +1,5 @@
+import { Drawable } from "./Drawable.js";
+
 export default class Images {
     static Tiles = {
         GRASS: "images/grass.png",
@@ -11,19 +13,24 @@ export default class Images {
 
     static #imageCache = {};
     static async getImage(src) {
+        if (Images.cacheContains(src)) return Images.getImageFromCache(src);
+        
         return new Promise((resolve) => {
-            if (Images.#imageCache[src] != undefined) resolve(Images.#imageCache[src]);
-
+            var size = new Drawable().size;
             var image = new Image();
-            var size = Math.floor(innerWidth / 16);
-            image.src = src;
 
             image.onload = async () => {
-                image = await createImageBitmap(image, { resizeHeight: size / 2, resizeWidth: size / Math.sqrt(3) });
+                image = await createImageBitmap(image, { resizeHeight: size / 2, resizeWidth: size / Math.sqrt(3), resizeQuality: "pixelated" });
                 Images.#imageCache[src] = image;
                 resolve(image);
             }
+
+            image.src = src;
         });
+    }
+
+    static get textures() {
+        return [ ...Object.values(Images.Tiles), Object.values(Images.Houses) ];
     }
 
     static getImageFromCache(src) {
@@ -31,6 +38,6 @@ export default class Images {
     }
 
     static cacheContains(src) {
-        return Images.#imageCache[src] != undefined;
+        return Images.getImageFromCache(src) != undefined;
     }
 }

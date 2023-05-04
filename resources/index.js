@@ -1,15 +1,22 @@
 import Images from "./Images.js";
 import TileManager from "./Drawable.js";
 import { Camera } from "./World.js";
+import { LayerManager } from "./Layer.js";
 
 window.init = async () => {
-    window.canvas = document.querySelector("canvas");
-    
     onresize();
+
+    LayerManager.layers.world.onRender = (ctx) => {
+        TileManager.getTiles().forEach(x => x.render(ctx));
+    };
+
+    LayerManager.layers.ui.onRender = (ctx) => {
+        Debugging.render(ctx);
+    };
     
     drawText("Loading Textures");
     
-    var textures = [ ...Object.values(Images.Tiles), Object.values(Images.Houses) ];
+    var textures = Images.textures;
     for (var i = 0; i < textures.length; i++) {
         var texture = textures[i];
         
@@ -21,30 +28,32 @@ window.init = async () => {
     drawText("Generating World");
     requestIdleCallback(async () => {
         await TileManager.generate();
-        Camera.moveTo(-Infinity, -Infinity);
+//        Camera.moveTo(-Infinity, -Infinity);
 
         render();
     }, { timeout: 100 });
 }
 
-var textQueue = [];
 export function drawText(text) {
-    textQueue.push(text);
+    var ctx = document.getElementById("ui-layer").getContext("2d");
+    var w = ctx.measureText(text).width;
 
-    var texts = new Array(...textQueue);
-    var ctx = window.canvas.getContext("2d");
     ctx.font = "5vh Arial";
-    textQueue = [];
-    texts.forEach(text => {
-        var w = ctx.measureText(text).width;
-        ctx.clearRect(0, 0, innerWidth, innerHeight);
-        ctx.fillText(text, (innerWidth - w) / 2, innerHeight / 2);
-    });
+    ctx.clearRect(0, 0, clientWidth, clientHeight);
+    ctx.fillText(text, (clientWidth - w) / 2, clientHeight / 2);
 }
 
 window.onresize = () => {
-    canvas.width = innerWidth;
-    canvas.height = innerHeight;
+    window.clientWidth = innerWidth;
+    window.clientHeight = innerHeight;
+
+    Object.values(LayerManager.layers).forEach(layer => {
+        layer.canvas.width = clientWidth;
+        layer.canvas.height = clientHeight;
+        
+        // Canvases get cleared when resized
+        layer.shouldRender = true;
+    });
 }
 
 window.keys = {};
@@ -76,7 +85,7 @@ class Cursor {
         Cursor.#selectedTile = TileManager.getHighlightedTile(Cursor.#lastKnownPosition.x, Cursor.#lastKnownPosition.y);
         if (Cursor.#selectedTile != undefined) {
             Cursor.#selectedTile.selected = true;
-            console.log(Cursor.#selectedTile);
+            LayerManager.shouldRenderLayer("world");
         }
     }
 
@@ -89,46 +98,61 @@ class Cursor {
 }
 
 window.onmousemove = Cursor._onmousemove;
+window.onwheel = (evt) => {
+    if (evt.deltaY < 0) {
+        Camera.zoomIn();
+    } else if (evt.deltaY > 0) {
+        Camera.zoomOut();
+    }
+}
 
 var previousTimestamp = performance.now();
 function render(timestamp = performance.now()) {
-    /**
-     * @type {CanvasRenderingContext2D}
-     */
-    var ctx = window.canvas.getContext("2d");
+    requestAnimationFrame(render);
+
     var delta = timestamp - previousTimestamp;
     previousTimestamp = timestamp;
-
-    requestAnimationFrame(render);
-    
-    ctx.clearRect(0, 0, innerWidth, innerHeight);
-    ctx.font = "5vh Arial";
     
     var velocity = 1/2 * delta;
     if (window.keys["w"] != undefined) {
+        LayerManager.shouldRenderLayer("world");
         Camera.moveBy(0, -velocity);
         Cursor.updateSelectedTile();
     } if (window.keys["a"] != undefined) {
+        LayerManager.shouldRenderLayer("world");
         Camera.moveBy(-velocity, 0);
         Cursor.updateSelectedTile();
     } if (window.keys["s"] != undefined) {
+        LayerManager.shouldRenderLayer("world");
         Camera.moveBy(0, velocity);
         Cursor.updateSelectedTile();
     } if (window.keys["d"] != undefined) {
+        LayerManager.shouldRenderLayer("world");
         Camera.moveBy(velocity, 0);
         Cursor.updateSelectedTile();
     }
 
-    TileManager.getTiles().forEach(x => x.render(ctx));
-    Debugging.render(ctx);
+    if (Debugging.enabled) LayerManager.shouldRenderLayer("ui");
+    LayerManager.render();
+    LayerManager.layersRendered();
 }
 
 class Debugging {
     static #frames = [];
+    static enabled = true;
+
+    /**
+     * 
+     * @param {CanvasRenderingContext2D} ctx 
+     */
     static render(ctx) {
         Debugging.#frames = Debugging.#frames.filter(x => x >= performance.now() - 1000);
         Debugging.#frames.push(performance.now());
 
-        ctx.fillText("FPS: " + Debugging.#frames.length, 0.01 * innerHeight, 0.045 * innerHeight);
+        ctx.save();
+            ctx.font = "5vh Arial";
+            ctx.fillStyle = "black";
+            ctx.fillText("FPS: " + Debugging.#frames.length, 0.01 * clientHeight, 0.045 * clientHeight);
+        ctx.restore();
     }
 }

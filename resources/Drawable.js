@@ -12,14 +12,21 @@ export class Drawable {
         this.type = type;
         this.imagePath = imagePath;
         
-        this.size = Math.floor(innerWidth / 16);
-
-        this.width = this.size / Math.sqrt(3);
-        this.height = this.size / 2;
-
         this.x = x;
         this.y = y;
         this.z = z;
+    }
+
+    get size() {
+        return clientWidth / 16 * Camera.zoom;
+    }
+
+    get width() {
+        return this.size / Math.sqrt(3);
+    }
+
+    get height() {
+        return this.size / 2;
     }
 
     /**
@@ -32,13 +39,26 @@ export class Drawable {
         var position = this.getScreenPosition();
         if (position == undefined) return;
 
-        ctx.drawImage(Images.getImageFromCache(this.imagePath), position.x, position.y);
+        ctx.drawImage(Images.getImageFromCache(this.imagePath), position.x, position.y, this.width, this.height);
+
+        if (!(this instanceof Tile)) return;
+
+        var { x, y } = this.getMiddlePoint();
+
+//        ctx.save();
+//            ctx.fillStyle = "aqua";
+//            ctx.beginPath();
+//            ctx.arc(x, y, this.width * 0.05, 0, Math.PI * 2);
+//            ctx.fill();
+//        ctx.restore();
 
         if (this.selected) {
-            var { x, y } = this.getMiddlePoint();
             var bounds = this.getBoundingBox();
+
+            // Hover effect
             ctx.save();
-                ctx.fillStyle = "#444";
+                ctx.fillStyle = "white";
+                ctx.globalAlpha = 0.2;
                 ctx.beginPath();
                     ctx.moveTo(bounds.x1, y);
                     ctx.lineTo(x, bounds.y1);
@@ -55,10 +75,10 @@ export class Drawable {
      */
     getScreenPosition() {
         var x = this.x * this.width - Camera.getPosition().x;
-        if (x + this.width < 0 || x > innerWidth) return;
+        if (x + this.width < 0 || x > clientWidth) return;
 
-        var y = this.z * this.height * (2/3) - this.y * this.size / 6 - Camera.getPosition().z;
-        if (y + this.height < 0 || y > innerHeight) return;
+        var y = this.z * this.height * (2/3) - this.y * this.height / 3 - Camera.getPosition().z;
+        if (y + this.height < 0 || y > clientHeight) return;
 
         return { x, y };
     }
