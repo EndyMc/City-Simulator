@@ -1,4 +1,5 @@
 import { Tile, House } from "./Drawable.js";
+import Images from "./Images.js";
 import { LayerManager } from "./Layer.js";
 import { drawText } from "./index.js";
 
@@ -13,10 +14,28 @@ export default class World {
     static MAX_X = 64;
     static MAX_Z = 64;
 
-    static async generate(tiles = []) {
-        console.log("Generating World");
+    static loadWorldFromStorage = true;
 
+    static async generate(tiles = []) {
         var start = performance.now();
+
+        if (World.loadWorldFromStorage && localStorage.getItem("world") != null) {
+            console.log("Loading World");
+            tiles = JSON.parse(localStorage.getItem("world"));
+            tiles = tiles.map(tile => {
+                if (Object.keys(Images.Tiles).includes(tile.type)) {
+                    return new Tile(tile.x, tile.y, tile.z, tile.type);
+                } else if (Object.keys(Images.Houses).includes(tile.type)) {
+                    return new House(tile.x, tile.y, tile.z, tile.type);
+                }
+            });
+
+            console.log("World Loaded; %sms", performance.now() - start);
+
+            return tiles;
+        }
+
+        console.log("Generating World");
 
         for (var z = -1; z <= World.MAX_Z; z += 0.5) {
             for (var x = -1; x <= World.MAX_X; x += 0.5) {
@@ -62,6 +81,11 @@ export default class World {
         tiles.sort((a, b) => (a.y) - (b.y));
         tiles.sort((a, b) => (a.z) - (b.z));
 
+        if (World.loadWorldFromStorage && localStorage.getItem("world") == null) {
+            console.log("Saving world to storage");
+            localStorage.setItem("world", JSON.stringify(tiles));
+        }
+
         return tiles;
     }
 
@@ -103,8 +127,10 @@ export default class World {
 
     static #spawnHouses(tiles) {
         var houseTiles = [];
-        tiles.filter(x => x.type == "GRASS").forEach(tile => {
-            if (Math.random() > 0.95) houseTiles.push(new House(tile.x, tile.y + 1, tile.z, "VARIANT_1"));
+        tiles.forEach(tile => {
+            if (tile.type == "GRASS" && Math.random() > 0.95) {
+                houseTiles.push(new House(tile.x, tile.y + 1, tile.z, "VARIANT_1"));
+            }
         });
 
         var depth = 5;
