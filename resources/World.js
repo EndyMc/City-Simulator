@@ -1,7 +1,7 @@
-import { Tile, House } from "./Drawable.js";
+import TileManager, { Tile, House, Drawable } from "./Drawable.js";
 import Images from "./Images.js";
 import { LayerManager } from "./Layer.js";
-import { drawText } from "./index.js";
+import { Cursor, drawText } from "./index.js";
 
 export default class World {
     // Set this higher for more hilly terrain
@@ -158,6 +158,8 @@ export class Camera {
      */
     static moveBy(x = 0, z = 0) {
         Camera.moveTo(Camera.getPosition().x + x, Camera.getPosition().z + z);
+        LayerManager.shouldRenderLayer("world");
+        Cursor.updateSelectedTile();
     }
 
     /**
@@ -166,10 +168,12 @@ export class Camera {
      * @param {number} z 
      */
     static moveTo(x = Camera.#position.x, z = Camera.#position.z) {
-        var size = Math.floor(clientWidth / 16) * Camera.zoom;
+        // A tile with the maximum allowed coordinates
+        var tile = new Drawable(World.MAX_X, World.WORLD_HEIGHT - World.WATER_LEVEL, World.MAX_Z);
+        var middlePoint = tile.getMiddlePoint(true);
 
-//        x = Math.min(size / Math.sqrt(3) * World.MAX_X - clientWidth, Math.max(size / Math.sqrt(3) / (-2), x));
-//        z = Math.min((size * (2/3) * World.MAX_Z - ((World.WORLD_HEIGHT-World.WATER_LEVEL) * size / 6) - 2*clientHeight) / 2 - size * (2/3) / 2, Math.max(size * (2/3) - ((World.WATER_LEVEL - World.WATER_LEVEL) * size / 6), z));
+        x = Math.min(middlePoint.x - clientWidth, Math.max(0, x));
+        z = Math.min(middlePoint.y - clientHeight, Math.max(0, z));
 
         Camera.#position = { x, z };
     }
@@ -194,7 +198,24 @@ export class Camera {
     }
 
     static set zoom(value) {
+        var oldValue = Camera.#zoom;
+        
         Camera.#zoom = value;
+        
+        var tile = new Drawable(World.MAX_X, World.WORLD_HEIGHT - World.WATER_LEVEL, World.MAX_Z);
+        var middlePoint = tile.getMiddlePoint(true);
+        if (Camera.#position.x != Math.min(middlePoint.x - clientWidth, Math.max(0, Camera.#position.x)) || Camera.#position.z != Math.min(middlePoint.y - clientHeight, Math.max(0, Camera.#position.z))) {
+            Camera.#zoom = oldValue;
+            Camera.moveBy(0, 0);
+            return;
+        }
+
+        Cursor.updateSelectedTile();
         LayerManager.shouldRenderLayer("world");
+        TileManager.getTiles().forEach(tile => {
+            // Update width and height
+            tile.width = 0;
+            tile.height = 0;
+        });
     }
 }

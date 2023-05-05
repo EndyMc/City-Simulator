@@ -28,7 +28,7 @@ window.init = async () => {
     drawText("Generating World");
     requestIdleCallback(async () => {
         await TileManager.generate();
-//        Camera.moveTo(-Infinity, -Infinity);
+        Camera.moveTo(-Infinity, -Infinity);
 
         render();
     }, { timeout: 100 });
@@ -47,6 +47,12 @@ window.onresize = () => {
     window.clientWidth = innerWidth;
     window.clientHeight = innerHeight;
 
+    TileManager.getTiles().forEach(tile => {
+        // Update width and height
+        tile.width = 0;
+        tile.height = 0;
+    });
+
     Object.values(LayerManager.layers).forEach(layer => {
         layer.canvas.width = clientWidth;
         layer.canvas.height = clientHeight;
@@ -58,14 +64,19 @@ window.onresize = () => {
 
 window.keys = {};
 window.onkeydown = (evt) => {
-    window.keys[evt.key] = true;
+    window.keys[evt.key.toLowerCase()] = true;
 }
 
 window.onkeyup = (evt) => {
-    window.keys[evt.key] = undefined;
+    window.keys[evt.key.toLowerCase()] = undefined;
+    if (evt.key == "+") {
+        Camera.zoomIn();
+    } else if (evt.key == "-") {
+        Camera.zoomOut();
+    }
 }
 
-class Cursor {
+export class Cursor {
     static #lastKnownPosition = { x: 0, y: 0 };
     static #selectedTile;
 
@@ -114,22 +125,18 @@ function render(timestamp = performance.now()) {
     previousTimestamp = timestamp;
     
     var velocity = 1/2 * delta;
+    if (window.keys["shift"] != undefined) {
+        velocity = 3/2 * delta;
+    }
+
     if (window.keys["w"] != undefined) {
-        LayerManager.shouldRenderLayer("world");
         Camera.moveBy(0, -velocity);
-        Cursor.updateSelectedTile();
     } if (window.keys["a"] != undefined) {
-        LayerManager.shouldRenderLayer("world");
         Camera.moveBy(-velocity, 0);
-        Cursor.updateSelectedTile();
     } if (window.keys["s"] != undefined) {
-        LayerManager.shouldRenderLayer("world");
         Camera.moveBy(0, velocity);
-        Cursor.updateSelectedTile();
     } if (window.keys["d"] != undefined) {
-        LayerManager.shouldRenderLayer("world");
         Camera.moveBy(velocity, 0);
-        Cursor.updateSelectedTile();
     }
 
     if (Debugging.enabled) LayerManager.shouldRenderLayer("ui");

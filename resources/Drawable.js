@@ -1,7 +1,12 @@
 import World, { Camera } from "./World.js";
 import Images from "./Images.js";
+import { LayerManager } from "./Layer.js";
+import { Cursor } from "./index.js";
 
 export class Drawable {
+    #width = this.size / Math.sqrt(3);
+    #height = this.size / 2;
+
     /**
      * @param {number} x 
      * @param {number} y 
@@ -21,12 +26,20 @@ export class Drawable {
         return clientWidth / 16 * Camera.zoom;
     }
 
+    set width(_) {
+        this.#width = this.size / Math.sqrt(3);
+    }
+    
+    set height(_) {
+        this.#height = this.size / 2;
+    }
+
     get width() {
-        return this.size / Math.sqrt(3);
+        return this.#width;
     }
 
     get height() {
-        return this.size / 2;
+        return this.#height;
     }
 
     /**
@@ -41,29 +54,19 @@ export class Drawable {
 
         ctx.drawImage(Images.getImageFromCache(this.imagePath), position.x, position.y, this.width, this.height);
 
-        if (!(this instanceof Tile)) return;
-
-        var { x, y } = this.getMiddlePoint();
-
-//        ctx.save();
-//            ctx.fillStyle = "aqua";
-//            ctx.beginPath();
-//            ctx.arc(x, y, this.width * 0.05, 0, Math.PI * 2);
-//            ctx.fill();
-//        ctx.restore();
-
         if (this.selected) {
+            var { x, y } = this.getMiddlePoint();
             var bounds = this.getBoundingBox();
-
+            
             // Hover effect
             ctx.save();
                 ctx.fillStyle = "white";
                 ctx.globalAlpha = 0.2;
                 ctx.beginPath();
-                    ctx.moveTo(bounds.x1, y);
-                    ctx.lineTo(x, bounds.y1);
-                    ctx.lineTo(bounds.x2, y);
-                    ctx.lineTo(x, position.y + this.width / Math.sqrt(3));
+                ctx.moveTo(bounds.x1, y);
+                ctx.lineTo(x, bounds.y1);
+                ctx.lineTo(bounds.x2, y);
+                ctx.lineTo(x, position.y + this.width / Math.sqrt(3));
                 ctx.closePath();
                 ctx.fill();
             ctx.restore();
@@ -73,14 +76,29 @@ export class Drawable {
     /**
      * @returns {{x: number, y: number}}
      */
-    getScreenPosition() {
-        var x = this.x * this.width - Camera.getPosition().x;
-        if (x + this.width < 0 || x > clientWidth) return;
+    getScreenPosition(ignoreOutOfBounds = false) {
+        var cameraPosition = Camera.getPosition();
 
-        var y = this.z * this.height * (2/3) - this.y * this.height / 3 - Camera.getPosition().z;
-        if (y + this.height < 0 || y > clientHeight) return;
+        var x = this.x * this.width - (ignoreOutOfBounds ? 0 : cameraPosition.x);
+        if (!ignoreOutOfBounds && (x + this.width < 0 || x > clientWidth)) return;
+
+        var y = this.z * this.height * (2/3) - this.y * this.height / 3 - (ignoreOutOfBounds ? 0 : cameraPosition.z);
+        if (!ignoreOutOfBounds && (y + this.height < 0 || y > clientHeight)) return;
 
         return { x, y };
+    }
+
+    get isometricBoundingBox() {
+        var { x, y } = this.getMiddlePoint();
+        var position = this.getScreenPosition();
+        var bounds = this.getBoundingBox();
+
+        return {
+            up: { x, y: bounds.y1 },
+            down: { x, y: position.y + this.width / Math.sqrt(3) },
+            left: { x: bounds.x1, y },
+            right: { x: bounds.x2, y }
+        }
     }
 
     /**
@@ -102,15 +120,92 @@ export class Drawable {
      * @returns {boolean}
      */
     contains(screenX, screenY) {
-        var bounds = this.getBoundingBox();
-        return bounds.x1 <= screenX && bounds.x2 >= screenX && bounds.y1 <= screenY && bounds.y2 >= screenY;
+        var rectangularBounds = this.getBoundingBox();
+        
+        if (!(rectangularBounds.x1 <= screenX && rectangularBounds.x2 >= screenX && rectangularBounds.y1 <= screenY && rectangularBounds.y2 >= screenY)) return false;
+        // Check so that the right side is to the right of the cursor
+        // Also check so that the left side isn't to the right of the cursor
+        
+        var bounds = this.isometricBoundingBox;
+        var normalizedCursorPosition = {
+            x: screenX - bounds.left.x,
+            y: screenY - bounds.up.y
+        }
+        
+        bounds.down = { x: bounds.down.x - bounds.left.x, y: bounds.down.y - bounds.up.y };
+        bounds.right = { x: bounds.right.x - bounds.left.x, y: bounds.right.y - bounds.up.y };
+        bounds.up.x = bounds.up.x - bounds.left.x;
+        bounds.left.y = bounds.left.y - bounds.up.y;
+        bounds.up.y = 0;
+        bounds.left.x = 0;
+        
+        var invertedCursorPosition = {
+            x: normalizedCursorPosition.x,
+            y: bounds.down.y - normalizedCursorPosition.y
+        }
+
+        // Calculate the coefficient for each of the edges
+        var sides = {
+            north_west: (bounds.up.y - bounds.left.y) / (bounds.up.x - bounds.left.x),
+            north_east: (bounds.right.y - bounds.up.y) / (bounds.right.x - bounds.up.x),
+            south_west: (bounds.down.y - bounds.left.y) / (bounds.down.x - bounds.left.x),
+            south_east: (bounds.right.y - bounds.down.y) / (bounds.right.x - bounds.down.x)
+        }
+        
+        /**
+         * @param {{ m: number, k: number }} line1 
+         * @param {{ m: number, k: number }} line2 
+         * @param {{ x: number, y: number }} min 
+         * @param {{ x: number, y: number }} max 
+         * @returns {boolean} Whether or not these lines intersect, within the defined range
+         */
+        var intersectHorizontal = (line1, line2, min, max) => {
+            min.x -= bounds.down.x;
+            max.x -= bounds.down.x;
+
+            var x = bounds.down.x + (line2.m - line1.m) / (line1.k - line2.k);
+            var y = line2.k * (x - bounds.down.x) + line2.m;
+            
+            if ((min.x < 0 && invertedCursorPosition.x < x) || (min.x >= 0 && invertedCursorPosition.x > x) || min.y > y || max.y < y) {
+                return false;
+            }
+
+            return true;
+        }
+
+        /**
+         * @param {number} x 
+         * @param {{ m: number, k: number }} line2 
+         * @param {{ x: number, y: number }} min 
+         * @param {{ x: number, y: number }} max 
+         * @returns {boolean} Whether or not these lines intersect, within the defined range
+         */
+        var intersectVertical = (x, line2, min, max) => {
+            min.x -= bounds.down.x;
+            max.x -= bounds.down.x;
+
+            var y = line2.k * (x - bounds.down.x) + line2.m;
+            
+            if ((min.y < bounds.left.y && invertedCursorPosition.y < y) || (min.y >= bounds.left.y && invertedCursorPosition.y > y) || min.y > y || max.y < y) {
+                return false;
+            }
+
+            return true;
+        }
+
+        var right = intersectHorizontal({ k: 0, m: invertedCursorPosition.y }, { m: 0, k: -sides.south_east }, { x: bounds.down.x, y: 0 }, { x: bounds.right.x, y: bounds.right.y }) || intersectHorizontal({ k: 0, m: invertedCursorPosition.y }, { m: bounds.down.y, k: -sides.north_east }, { x: bounds.up.x, y: bounds.right.y }, { x: bounds.right.x, y: bounds.down.y });
+        var left = intersectHorizontal({ k: 0, m: invertedCursorPosition.y }, { m: 0, k: -sides.south_west }, { x: bounds.left.x, y: 0 }, { x: bounds.down.x, y: bounds.left.y }) || intersectHorizontal({ k: 0, m: invertedCursorPosition.y }, { m: bounds.down.y, k: -sides.north_west }, { x: bounds.left.x, y: bounds.left.y }, { x: bounds.up.x, y: bounds.down.y });
+        var up = intersectVertical(invertedCursorPosition.x, { m: bounds.down.y, k: -sides.north_west }, { x: bounds.left.x, y: bounds.left.y }, { x: bounds.down.x, y: bounds.down.y }) || intersectVertical(invertedCursorPosition.x, { m: bounds.down.y, k: -sides.north_east }, { x: bounds.up.x, y: bounds.right.y }, { x: bounds.right.x, y: bounds.down.y });
+        var down = intersectVertical(invertedCursorPosition.x, { m: 0, k: -sides.south_west }, { x: bounds.left.x, y: 0 }, { x: bounds.down.x, y: bounds.left.y }) || intersectVertical(invertedCursorPosition.x, { m: 0, k: -sides.south_east }, { x: bounds.down.x, y: 0 }, { x: bounds.right.x, y: bounds.right.y });
+
+        return up && down && right && left;
     }
 
     /**
      * @returns {{ x: number, y: number }} The middle of the top portion of the tile
      */
-    getMiddlePoint() {
-        var position = this.getScreenPosition();
+    getMiddlePoint(ignoreOutOfBounds = false) {
+        var position = this.getScreenPosition(ignoreOutOfBounds);
 
         return {
             x: (position?.x + this.width / 2) || -1,
@@ -201,10 +296,7 @@ export default class TileManager {
             // Sort by z-coordinate
             .sort((a, b) => b.z - a.z)
 
-            // Sort by distance from mouse
-            .sort((a, b) => a.distance(screenX, screenY) - b.distance(screenX, screenY));
-
         // Return to most likely one
-        return candidates[0];
+        return candidates?.[0] || Cursor.getSelectedTile();
     }
 }
