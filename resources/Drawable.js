@@ -1,6 +1,5 @@
 import World, { Camera } from "./World.js";
 import Images from "./Images.js";
-import { LayerManager } from "./Layer.js";
 import { Cursor } from "./index.js";
 
 export class Drawable {
@@ -40,6 +39,14 @@ export class Drawable {
 
     get height() {
         return this.#height;
+    }
+
+    get hash() {
+        return Drawable.getHash(this.x, this.z);
+    }
+
+    static getHash(x, z) {
+        return "x" + x.toFixed(1) + "z" + z.toFixed(1);
     }
 
     /**
