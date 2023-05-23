@@ -14,7 +14,7 @@ export default class World {
     static MAX_X = 64;
     static MAX_Z = 64;
 
-    static loadWorldFromStorage = true;
+    static loadWorldFromStorage = false;
 
     static async generate(tiles = []) {
         var start = performance.now();
@@ -43,12 +43,13 @@ export default class World {
                 if ((x % 1 != 0 && z % 1 == 0) || (x % 1 == 0 && z % 1 != 0)) continue;
                 var y = Math.round(Math.random()*World.WORLD_HEIGHT);
                 var tile = new Tile(x, y, z);
+                var hash = tile.hash;
                 tiles.push(tile);
 
-                if (tileHash[tile.hash] == undefined) {
-                    tileHash[tile.hash] = [];
+                if (tileHash[hash] == undefined) {
+                    tileHash[hash] = [];
                 }
-                tileHash[tile.hash].push(tile);
+                tileHash[hash].push(tile);
             }
         }    
 
@@ -58,26 +59,32 @@ export default class World {
         for (var i = 0; i < depth; i++) {
             console.log("Interpolating world; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
             drawText("Interpolating world; Depth: " + (i+1) + "/" + depth);
-            await new Promise((resolve) => { requestIdleCallback(() => { tiles = World.#interpolate(tiles, tileHash); resolve(); }, { timeout: 100 }); });
-            tileHash = {};
-            tiles.forEach((tile) => {
-                if (tileHash[tile.hash] == undefined) {
-                    tileHash[tile.hash] = [];
+            await new Promise((resolve) => { requestIdleCallback(() => {
+                var interpolatedTiles = World.#interpolate(tiles, tileHash);
+                
+                for (var i = 0; i < tiles.length; i++) {
+                    tiles[i].y = interpolatedTiles[i];
                 }
-                tileHash[tile.hash].push(tile);
-            });
+        
+                resolve();
+            }, { timeout: 100 }); });
         }
 
-        tiles.forEach(tile => {
-            if (tile.type == "WATER") tile.y = World.WATER_LEVEL;
-        });
-        tileHash = {};
-        tiles.forEach((tile) => {
-            if (tileHash[tile.hash] == undefined) {
-                tileHash[tile.hash] = [];
+        var len = tiles.length;
+        var waterPath = Images.Tiles.WATER;
+        var grassPath = Images.Tiles.GRASS;
+        for (var i = 0; i < len; i++) {
+            var tile = tiles[i];
+            if (tile.y <= World.WATER_LEVEL) {
+                tile.type = "WATER";
+                tile.imagePath = waterPath;
+
+                tile.y = World.WATER_LEVEL;
+            } else if (tile.type == "WATER") {
+                tile.type = "GRASS";
+                tile.imagePath = grassPath;
             }
-            tileHash[tile.hash].push(tile);
-        });
+        }
 
         var depth = World.WORLD_HEIGHT;
         var dirt = undefined;
@@ -86,12 +93,14 @@ export default class World {
             drawText("Generating dirt; Depth: " + (i+1) + "/" + depth);
             await new Promise((resolve) => { requestIdleCallback(() => {
                 dirt = World.#generateDirt(tiles, dirt, tileHash);
+
                 tiles.push(...dirt);
                 dirt.forEach((tile) => {
-                    if (tileHash[tile.hash] == undefined) {
-                        tileHash[tile.hash] = [];
+                    var hash = tile.hash;
+                    if (tileHash[hash] == undefined) {
+                        tileHash[hash] = [];
                     }
-                    tileHash[tile.hash].push(tile);
+                    tileHash[hash].push(tile);
                 });
                 resolve();
             }, { timeout: 100 }); });
@@ -142,7 +151,7 @@ export default class World {
             neighbours = neighbours.filter(x => x != undefined);
             var averageHeight = neighbours.reduce((t, a) => t + a.y, 0) / neighbours.length;
 
-            interpolatedTiles.push(new Tile(tile.x, Math.round(averageHeight), tile.z));
+            interpolatedTiles.push(Math.round(averageHeight));
         }
 
         return interpolatedTiles;

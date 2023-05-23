@@ -46,7 +46,7 @@ export class Drawable {
     }
 
     static getHash(x, z) {
-        return "x" + x.toFixed(1) + "z" + z.toFixed(1);
+        return "x" + Math.round(10*x) + "z" + Math.round(10*z);
     }
 
     /**
