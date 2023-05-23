@@ -16,11 +16,11 @@ export default class World {
 
     static loadWorldFromStorage = false;
 
-    static async generate(tiles = []) {
+    static async generate(tiles = [], startX = 0, startZ = 0, endX = World.MAX_X, endZ = World.MAX_Z, connectedTiles = []) {
         var start = performance.now();
         var tileHash = {};
 
-        if (World.loadWorldFromStorage && localStorage.getItem("world") != null) {
+        if (connectedTiles.length == 0 && World.loadWorldFromStorage && localStorage.getItem("world") != null) {
             console.log("Loading World");
             tiles = JSON.parse(localStorage.getItem("world"));
             tiles = tiles.map(tile => {
@@ -37,15 +37,15 @@ export default class World {
         }
 
         console.log("Generating World");
-
-        for (var z = -1; z <= World.MAX_Z; z += 0.5) {
-            for (var x = -1; x <= World.MAX_X; x += 0.5) {
+        
+        for (var z = startZ; z <= endZ; z += 0.5) {
+            for (var x = startX; x <= endX; x += 0.5) {
                 if ((x % 1 != 0 && z % 1 == 0) || (x % 1 == 0 && z % 1 != 0)) continue;
                 var y = Math.round(Math.random()*World.WORLD_HEIGHT);
                 var tile = new Tile(x, y, z);
                 var hash = tile.hash;
                 tiles.push(tile);
-
+                
                 if (tileHash[hash] == undefined) {
                     tileHash[hash] = [];
                 }
@@ -53,6 +53,14 @@ export default class World {
             }
         }    
 
+        connectedTiles.forEach(t => {
+            var hash = t.hash;
+            if (tileHash[hash] == undefined) {
+                tileHash[hash] = [];
+            }
+            tileHash[hash].push(t);
+        });
+        
         // The higher the depth value is, the flatter the world is
         // A value of 10 seems to work well with the type of game I'm making
         var depth = 10;
@@ -92,7 +100,7 @@ export default class World {
             console.log("Generating dirt; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
             drawText("Generating dirt; Depth: " + (i+1) + "/" + depth);
             await new Promise((resolve) => { requestIdleCallback(() => {
-                dirt = World.#generateDirt(tiles, dirt, tileHash);
+                dirt = World.#generateDirt([ ...tiles, ...connectedTiles ], dirt, tileHash);
 
                 tiles.push(...dirt);
                 dirt.forEach((tile) => {
@@ -113,7 +121,7 @@ export default class World {
         console.log("World generated; %sms", performance.now() - start);
 
         // Move the tiles so that they're on screen
-        tiles.forEach(tile => tile.y -= World.WATER_LEVEL);
+//        tiles.forEach(tile => tile.y -= World.WATER_LEVEL);
 
         // Make sure that tiles which are higher up on the screen are rendered first
         // Also make sure that tiles with a lower y-position are rendered first
@@ -217,6 +225,7 @@ export class Camera {
         Cursor.updateSelectedTile();
     }
 
+    static generatingTerrain = false;
     /**
      * Move the camera
      * @param {number} x 
@@ -224,11 +233,39 @@ export class Camera {
      */
     static moveTo(x = Camera.#position.x, z = Camera.#position.z) {
         // A tile with the maximum allowed coordinates
-        var tile = new Drawable(World.MAX_X, World.WORLD_HEIGHT - World.WATER_LEVEL, World.MAX_Z);
-        var middlePoint = tile.getMiddlePoint(true);
+//        var tile = new Drawable(World.MAX_X, World.WORLD_HEIGHT - World.WATER_LEVEL, World.MAX_Z);
+//        var middlePoint = tile.getMiddlePoint(true);
 
-        x = Math.min(middlePoint.x - clientWidth, Math.max(0, x));
-        z = Math.min(middlePoint.y - clientHeight, Math.max(0, z));
+//        x = Math.min(middlePoint.x - clientWidth, Math.max(0, x));
+//        z = Math.min(middlePoint.y - clientHeight, Math.max(0, z));
+
+        if (!Camera.generatingTerrain) {
+            var tiles = TileManager.getTiles().filter(() => true);
+            
+            var tileX = tiles.map(t => t.x);
+            var tileZ = tiles.map(t => t.z);
+            
+            var minX = Math.min(...tileX);
+            var minZ = Math.min(...tileZ);
+            var maxX = Math.max(...tileX);
+            var maxZ = Math.max(...tileZ);
+            
+            var minScreen = tiles.find(t => t.x == minX && t.z == minZ).getScreenPosition(true);
+            var maxScreen = tiles.find(t => t.x == maxX && t.z == maxZ).getScreenPosition(true);
+
+            Camera.generatingTerrain = true;
+            if (Math.abs(minScreen.x - x) < clientWidth*0.5) {
+                TileManager.generate(undefined, minX - 16, minZ, minX - 0.5, maxZ, tiles.filter(t => t.x == minX));
+            } else if (Math.abs(maxScreen.x - x) < clientWidth*1.5) {
+                TileManager.generate(undefined, maxX + 0.5, minZ, maxX + 16, maxZ, tiles.filter(t => t.x == maxX));
+            } else if (Math.abs(minScreen.y - z) < clientWidth*0.5) {
+                TileManager.generate(undefined, minX, minZ - 16, maxX, minZ - 0.5, tiles.filter(t => t.z == minZ));
+            } else if (Math.abs(maxScreen.y - z) < clientHeight + 0.5*clientWidth) {
+                TileManager.generate(undefined, minX, maxZ + 0.5, maxX, maxZ + 16, tiles.filter(t => t.z == maxZ));
+            } else {
+                Camera.generatingTerrain = false;
+            }
+        }
 
         Camera.#position = { x, z };
     }

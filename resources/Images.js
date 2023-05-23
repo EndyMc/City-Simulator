@@ -12,6 +12,7 @@ export default class Images {
     }
 
     static #imageCache = {};
+    static #upscale = 10;
     static async getImage(src) {
         if (Images.cacheContains(src)) return Images.getImageFromCache(src);
         
@@ -20,7 +21,8 @@ export default class Images {
             var image = new Image();
 
             image.onload = async () => {
-                image = await createImageBitmap(image, { resizeHeight: size / 2, resizeWidth: size / Math.sqrt(3), resizeQuality: "pixelated" });
+                image = await createImageBitmap(image, { resizeHeight: size / 2 * Images.#upscale, resizeWidth: size / Math.sqrt(3) * Images.#upscale, resizeQuality: "pixelated" });
+                console.log(image);
                 Images.#imageCache[src] = image;
                 resolve(image);
             }

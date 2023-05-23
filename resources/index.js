@@ -28,7 +28,7 @@ window.init = async () => {
     drawText("Generating World");
     requestIdleCallback(async () => {
         await TileManager.generate();
-        Camera.moveTo(-Infinity, -Infinity);
+        Camera.moveTo(0, 0);
 
         render();
     }, { timeout: 100 });

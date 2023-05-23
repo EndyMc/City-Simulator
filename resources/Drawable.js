@@ -1,10 +1,13 @@
 import World, { Camera } from "./World.js";
 import Images from "./Images.js";
 import { Cursor } from "./index.js";
+import { LayerManager } from "./Layer.js";
 
 export class Drawable {
     #width = this.size / Math.sqrt(3);
     #height = this.size / 2;
+
+    #image = undefined;
 
     /**
      * @param {number} x 
@@ -45,6 +48,15 @@ export class Drawable {
         return Drawable.getHash(this.x, this.z);
     }
 
+    get image() {
+        if (this.#image == undefined) {
+            if (!Images.cacheContains(this.imagePath)) return;
+            this.#image = Images.getImageFromCache(this.imagePath);
+        }
+        
+        return this.#image;
+    }
+
     static getHash(x, z) {
         return "x" + Math.round(10*x) + "z" + Math.round(10*z);
     }
@@ -54,12 +66,18 @@ export class Drawable {
      * @param {CanvasRenderingContext2D} ctx 
      */
     render(ctx) {
-        if (!Images.cacheContains(this.imagePath)) return;
+        if (this.image == undefined) return;
 
         var position = this.getScreenPosition();
         if (position == undefined) return;
 
-        ctx.drawImage(Images.getImageFromCache(this.imagePath), position.x, position.y, this.width, this.height);
+        var img = this.image;
+        var x = position.x;
+        var y = position.y;
+        var w = this.width;
+        var h = this.height;
+
+        ctx.drawImage(img, x, y, w, h);
 
         if (this.selected) {
             var { x, y } = this.getMiddlePoint();
@@ -113,11 +131,20 @@ export class Drawable {
      */
     getBoundingBox() {
         var position = this.getScreenPosition();
-        return {
-            x1: (position?.x) || -1,
-            y1: (position?.y) || -1,
-            x2: (position?.x + this.width) || -1,
-            y2: (position?.y + this.height) || -1
+        if (position == undefined) {
+            return {
+                x1: -1,
+                y1: -1,
+                x2: -1,
+                y2: -1
+            }
+        } else {
+            return {
+                x1: position.x,
+                y1: position.y,
+                x2: position.x + this.width,
+                y2: position.y + this.height
+            }
         }
     }
 
@@ -281,8 +308,14 @@ export default class TileManager {
         return TileManager.#tiles;
     }
 
-    static async generate() {
-        TileManager.#tiles = await World.generate();
+    static async generate(tiles, startX, startZ, endX, endZ, connectedTiles) {
+        TileManager.#tiles.push(...(await World.generate(tiles, startX, startZ, endX, endZ, connectedTiles)));
+
+        TileManager.#tiles.sort((a, b) => (a.y) - (b.y));
+        TileManager.#tiles.sort((a, b) => (a.z) - (b.z));
+
+        Camera.generatingTerrain = false;
+        Camera.moveBy(0, 0);
     }
 
     static getHighlightedTile(screenX, screenY) {
