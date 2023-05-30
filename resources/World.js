@@ -1,7 +1,8 @@
-import TileManager, { Tile, House, Drawable } from "./Drawable.js";
+import TileManager, { Tile, House, Drawable, Boat } from "./Drawable.js";
 import Images from "./Images.js";
 import { LayerManager } from "./Layer.js";
 import { Cursor, drawText } from "./index.js";
+
 
 export default class World {
     // Set this higher for more hilly terrain
@@ -14,7 +15,7 @@ export default class World {
     static MAX_X = 64;
     static MAX_Z = 64;
 
-    static loadWorldFromStorage = false;
+    static loadWorldFromStorage = true;
 
     static async generate(tiles = [], startX = 0, startZ = 0, endX = World.MAX_X, endZ = World.MAX_Z, connectedTiles = []) {
         var start = performance.now();
@@ -32,6 +33,9 @@ export default class World {
             });
 
             console.log("World Loaded; %sms", performance.now() - start);
+
+            tiles.sort((a, b) => (a.y) - (b.y));
+            tiles.sort((a, b) => (a.z) - (b.z));    
 
             return tiles;
         }
@@ -118,6 +122,10 @@ export default class World {
         drawText("Spawning houses");
         await new Promise((resolve) => { requestIdleCallback(() => { tiles.push(...World.#spawnHouses(tiles)); resolve(); }, { timeout: 100 }); });
 
+        console.log("Spawning boats; %sms", performance.now() - start);
+        drawText("Spawning boats");
+//        await new Promise((resolve) => { requestIdleCallback(() => { tiles.push(...World.#spawnBoats(tiles)); resolve(); }, { timeout: 100 }); });
+
         console.log("World generated; %sms", performance.now() - start);
 
         // Move the tiles so that they're on screen
@@ -128,10 +136,8 @@ export default class World {
         tiles.sort((a, b) => (a.y) - (b.y));
         tiles.sort((a, b) => (a.z) - (b.z));
 
-        if (World.loadWorldFromStorage && localStorage.getItem("world") == null) {
-            console.log("Saving world to storage");
-            localStorage.setItem("world", JSON.stringify(tiles));
-        }
+        console.log("Saving world to storage");
+        localStorage.setItem("world", JSON.stringify([ ...TileManager.getTiles().map(t => t.toString()), ...tiles.map(t => t.toString()) ]));
 
         return tiles;
     }
@@ -188,6 +194,11 @@ export default class World {
         return dirtTiles;
     }
 
+    /**
+     * 
+     * @param {Tile[]} tiles 
+     * @returns {House[]}
+     */
     static #spawnHouses(tiles) {
         var houseTiles = [];
         tiles.forEach(tile => {
@@ -208,7 +219,25 @@ export default class World {
 
         return houseTiles;
     }
+
+    /**
+     * @param {Tile[]} tiles 
+     * @returns {Boat[]}
+     */
+    static #spawnBoats(tiles) {
+        var water = tiles.filter(t => t.type == "WATER");
+        var boats = [];
+        water.forEach(t => {
+            boats.push(new Boat(t.x, t.y + 1, t.z));
+        });
+
+        console.log(water);
+        console.log(boats);
+
+        return boats;
+    }
 }
+
 
 export class Camera {
     static #position = { x: 0, z: 0 };
@@ -240,7 +269,7 @@ export class Camera {
 //        z = Math.min(middlePoint.y - clientHeight, Math.max(0, z));
 
         if (!Camera.generatingTerrain) {
-            var tiles = TileManager.getTiles().filter(() => true);
+            var tiles = TileManager.getTiles();
             
             var tileX = tiles.map(t => t.x);
             var tileZ = tiles.map(t => t.z);
@@ -250,8 +279,8 @@ export class Camera {
             var maxX = Math.max(...tileX);
             var maxZ = Math.max(...tileZ);
             
-            var minScreen = tiles.find(t => t.x == minX && t.z == minZ).getScreenPosition(true);
-            var maxScreen = tiles.find(t => t.x == maxX && t.z == maxZ).getScreenPosition(true);
+//            var minScreen = TileManager.getTileHashes()[new Drawable(minX, 0, minZ).hash]?.[0]?.getScreenPosition(true) || { x: -1, y: -1 };
+//            var maxScreen = TileManager.getTileHashes()[new Drawable(maxX, 0, maxZ).hash]?.[0]?.getScreenPosition(true) || { x: -1, y: -1 };
 
             Camera.generatingTerrain = true;
             if (Math.abs(minScreen.x - x) < clientWidth*0.5) {

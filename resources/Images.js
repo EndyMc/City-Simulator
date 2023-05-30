@@ -11,6 +11,10 @@ export default class Images {
         VARIANT_1: "images/house.png"
     }
 
+    static Boats = {
+        VARIANT_1: "images/boat_1.png"
+    }
+
     static #imageCache = {};
     static #upscale = 10;
     static async getImage(src) {
@@ -22,7 +26,7 @@ export default class Images {
 
             image.onload = async () => {
                 image = await createImageBitmap(image, { resizeHeight: size / 2 * Images.#upscale, resizeWidth: size / Math.sqrt(3) * Images.#upscale, resizeQuality: "pixelated" });
-                console.log(image);
+
                 Images.#imageCache[src] = image;
                 resolve(image);
             }

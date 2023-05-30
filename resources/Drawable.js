@@ -1,7 +1,6 @@
 import World, { Camera } from "./World.js";
 import Images from "./Images.js";
 import { Cursor } from "./index.js";
-import { LayerManager } from "./Layer.js";
 
 export class Drawable {
     #width = this.size / Math.sqrt(3);
@@ -266,6 +265,10 @@ export class Drawable {
 
         return distance;
     }
+
+    toString() {
+        return { x: this.x, y: this.y, z: this.y, type: this.type };
+    }
 }
 
 export class House extends Drawable {
@@ -300,12 +303,21 @@ export class Tile extends Drawable {
 
 export default class TileManager {
     static #tiles = [];
+    static #tileHashes = {};
 
     /**
-     * @returns {Tile[]} A copy of the tiles array
+     * @returns {Tile[]}
      */
     static getTiles() {
         return TileManager.#tiles;
+    }
+
+    static getTile(x, y, z) {
+        return TileManager.#tileHashes[new Drawable(x, y, z).hash].find(t => t.y == y);
+    }
+
+    static getTileHashes() {
+        return TileManager.#tileHashes;
     }
 
     static async generate(tiles, startX, startZ, endX, endZ, connectedTiles) {
@@ -313,9 +325,19 @@ export default class TileManager {
 
         TileManager.#tiles.sort((a, b) => (a.y) - (b.y));
         TileManager.#tiles.sort((a, b) => (a.z) - (b.z));
+        
+        TileManager.#tiles.forEach(t => {
+            var hash = t.hash;
+            if (TileManager.#tileHashes[hash]?.includes(t)) return;
 
-        Camera.generatingTerrain = false;
+            if (TileManager.#tileHashes[hash] == undefined) {
+                TileManager.#tileHashes[hash] = [];
+            }
+            TileManager.#tileHashes[hash].push(t);
+        });
+        
         Camera.moveBy(0, 0);
+        Camera.generatingTerrain = false;
     }
 
     static getHighlightedTile(screenX, screenY) {
@@ -325,18 +347,42 @@ export default class TileManager {
                 // Don't check houses and other such entities
                 return false;
             }
-
+            
             tile.selected = false;
 
             return tile.contains(screenX, screenY);
         })
-            // Sort by y-coordinate
-            .sort((a, b) => b.y - a.y)
+        // Sort by y-coordinate
+        .sort((a, b) => b.y - a.y)
             
             // Sort by z-coordinate
             .sort((a, b) => b.z - a.z)
 
         // Return to most likely one
         return candidates?.[0] || Cursor.getSelectedTile();
+    }
+}
+window.t = TileManager;
+
+class Vehicle extends Drawable {
+    constructor(x, y, z, type) {
+        var imagePath = Images.Boats[type];
+        super(x, y, z, imagePath, type);
+    }
+
+    moveBy(x, z) {
+        this.moveTo(x + this.x, z + this.z);
+    }
+
+    moveTo(x, z) {
+        this.x = x;
+        this.z = z;
+        this.y = Math.max(...TileManager.getTileHashes()[this.hash].filter(() => true).map(t => t.y)) + 1;
+    }
+}
+
+export class Boat extends Vehicle {
+    constructor(x, y, z) {
+        super(x, y, z, "VARIANT_1");
     }
 }
