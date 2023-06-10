@@ -5,6 +5,7 @@ import { LayerManager } from "./Layer.js";
 
 window.init = async () => {
     onresize();
+    navigator.storage.persist();
 
     LayerManager.layers.world.onRender = (ctx) => {
         TileManager.getTiles().forEach(x => x.render(ctx));

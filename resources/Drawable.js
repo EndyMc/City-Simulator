@@ -43,6 +43,10 @@ export class Drawable {
         return this.#height;
     }
 
+    get key() {
+        return "x" + Math.round(10*this.x) + "y" + Math.round(10*this.y) + "z" + Math.round(10*this.z);
+    }
+
     get hash() {
         return Drawable.getHash(this.x, this.z);
     }
@@ -267,7 +271,7 @@ export class Drawable {
     }
 
     toString() {
-        return { x: this.x, y: this.y, z: this.y, type: this.type };
+        return { x: this.x, y: this.y, z: this.z, type: this.type };
     }
 }
 
@@ -338,6 +342,10 @@ export default class TileManager {
         
         Camera.moveBy(0, 0);
         Camera.generatingTerrain = false;
+    }
+
+    static unload(startX, startZ, endX, endZ) {
+        
     }
 
     static getHighlightedTile(screenX, screenY) {

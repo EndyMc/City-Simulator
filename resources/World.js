@@ -15,15 +15,18 @@ export default class World {
     static MAX_X = 64;
     static MAX_Z = 64;
 
-    static loadWorldFromStorage = true;
+    static #world;
 
     static async generate(tiles = [], startX = 0, startZ = 0, endX = World.MAX_X, endZ = World.MAX_Z, connectedTiles = []) {
         var start = performance.now();
         var tileHash = {};
 
-        if (connectedTiles.length == 0 && World.loadWorldFromStorage && localStorage.getItem("world") != null) {
-            console.log("Loading World");
-            tiles = JSON.parse(localStorage.getItem("world"));
+        console.log("Loading World");
+
+        if (World.#world == undefined) World.#world = await Storage.get().getAll();
+
+        tiles = World.#world.filter(t => t.x >= startX && t.x <= endX && t.z >= startZ && t.z <= endZ);        
+        if (tiles.length > 0) {
             tiles = tiles.map(tile => {
                 if (Object.keys(Images.Tiles).includes(tile.type)) {
                     return new Tile(tile.x, tile.y, tile.z, tile.type);
@@ -31,16 +34,17 @@ export default class World {
                     return new House(tile.x, tile.y, tile.z, tile.type);
                 }
             });
-
+            
             console.log("World Loaded; %sms", performance.now() - start);
-
+            
             tiles.sort((a, b) => (a.y) - (b.y));
             tiles.sort((a, b) => (a.z) - (b.z));    
-
+            
             return tiles;
         }
 
-        console.log("Generating World");
+        console.log("World Not Found In Cache");
+        console.log("Generating New Terrain");
         
         for (var z = startZ; z <= endZ; z += 0.5) {
             for (var x = startX; x <= endX; x += 0.5) {
@@ -122,10 +126,6 @@ export default class World {
         drawText("Spawning houses");
         await new Promise((resolve) => { requestIdleCallback(() => { tiles.push(...World.#spawnHouses(tiles)); resolve(); }, { timeout: 100 }); });
 
-        console.log("Spawning boats; %sms", performance.now() - start);
-        drawText("Spawning boats");
-//        await new Promise((resolve) => { requestIdleCallback(() => { tiles.push(...World.#spawnBoats(tiles)); resolve(); }, { timeout: 100 }); });
-
         console.log("World generated; %sms", performance.now() - start);
 
         // Move the tiles so that they're on screen
@@ -136,8 +136,12 @@ export default class World {
         tiles.sort((a, b) => (a.y) - (b.y));
         tiles.sort((a, b) => (a.z) - (b.z));
 
-        console.log("Saving world to storage");
-        localStorage.setItem("world", JSON.stringify([ ...TileManager.getTiles().map(t => t.toString()), ...tiles.map(t => t.toString()) ]));
+        console.log("Saving world to storage; %sms", performance.now() - start);
+        
+        World.#world = [ ...TileManager.getTiles(), ...tiles ];
+        Storage.get().saveAll(tiles.map(t => t.key), tiles.map(t => t.toString()));
+
+        console.log("World Saved; %sms", performance.now() - start);
 
         return tiles;
     }
@@ -219,25 +223,91 @@ export default class World {
 
         return houseTiles;
     }
+}
 
-    /**
-     * @param {Tile[]} tiles 
-     * @returns {Boat[]}
-     */
-    static #spawnBoats(tiles) {
-        var water = tiles.filter(t => t.type == "WATER");
-        var boats = [];
-        water.forEach(t => {
-            boats.push(new Boat(t.x, t.y + 1, t.z));
+class Storage {
+    static singleton = new Storage();
+
+    static get() {
+        return Storage.singleton;
+    }
+
+    constructor() {
+        this.worker = new Worker("resources/Storage_Worker.js");
+
+        var openRequest = indexedDB.open("city-builder", 1);
+
+        // Called if this is the first time the DB was opened, AKA the DB was
+        // created and needs to have all of the neccessary objectStores inserted
+        openRequest.onupgradeneeded = () => {
+            console.log("OnUpgradeNeeded");
+            openRequest.result.createObjectStore("world");
+        }
+
+        openRequest.onsuccess = () => {
+            this.db = openRequest.result;
+        }
+
+        openRequest.onblocked = () => {
+            console.error("Database open request blocked");
+        };
+        
+        openRequest.onerror = (event) => {
+            console.error("Error opening database:", event.target.error);
+        };
+    }
+
+    async get(key) {
+        var transaction = this.db.transaction("world", "readonly");
+        var store = transaction.objectStore("world");
+        var request = store.get(key);
+
+        var result = await new Promise((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => {
+                console.error(request.error);
+                reject(request.error);
+            }
         });
 
-        console.log(water);
-        console.log(boats);
+        return result;
+    }
 
-        return boats;
+    async getAll() {
+        if (this.db == undefined) return [];
+        var transaction = this.db.transaction("world", "readonly");
+        var store = transaction.objectStore("world");
+        var request = store.getAll();
+
+        var result = await new Promise((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => {
+                console.error(request.error);
+                reject(request.error);
+            }
+        });
+
+        return result;
+    }
+
+    saveAll(keys, values) {
+        this.worker.postMessage({ "function": "saveAll", params: [ keys, values ] });
+    }
+
+    save(key, data) {
+        this.worker.postMessage({ "function": "save", params: [ key, data ] });
+    }
+    
+    remove(key) {
+        this.worker.postMessage({ "function": "remove", params: [ key ] });
+    }
+
+    clear() {
+        this.worker.postMessage({ "function": "clear", params: [  ] });
     }
 }
 
+window.s = Storage;
 
 export class Camera {
     static #position = { x: 0, z: 0 };
@@ -262,11 +332,11 @@ export class Camera {
      */
     static moveTo(x = Camera.#position.x, z = Camera.#position.z) {
         // A tile with the maximum allowed coordinates
-//        var tile = new Drawable(World.MAX_X, World.WORLD_HEIGHT - World.WATER_LEVEL, World.MAX_Z);
-//        var middlePoint = tile.getMiddlePoint(true);
+        var tile = new Drawable(World.MAX_X, World.WORLD_HEIGHT - World.WATER_LEVEL, World.MAX_Z);
+        var middlePoint = tile.getMiddlePoint(true);
 
-//        x = Math.min(middlePoint.x - clientWidth, Math.max(0, x));
-//        z = Math.min(middlePoint.y - clientHeight, Math.max(0, z));
+        x = Math.min(middlePoint.x - clientWidth, Math.max(0, x));
+        z = Math.min(middlePoint.y - clientHeight, Math.max(0, z));
 
         if (!Camera.generatingTerrain) {
             var tiles = TileManager.getTiles();
@@ -279,8 +349,8 @@ export class Camera {
             var maxX = Math.max(...tileX);
             var maxZ = Math.max(...tileZ);
             
-//            var minScreen = TileManager.getTileHashes()[new Drawable(minX, 0, minZ).hash]?.[0]?.getScreenPosition(true) || { x: -1, y: -1 };
-//            var maxScreen = TileManager.getTileHashes()[new Drawable(maxX, 0, maxZ).hash]?.[0]?.getScreenPosition(true) || { x: -1, y: -1 };
+            var minScreen = TileManager.getTileHashes()[new Drawable(minX, 0, minZ).hash]?.[0]?.getScreenPosition(true) || { x: -1, y: -1 };
+            var maxScreen = TileManager.getTileHashes()[new Drawable(maxX, 0, maxZ).hash]?.[0]?.getScreenPosition(true) || { x: -1, y: -1 };
 
             Camera.generatingTerrain = true;
             if (Math.abs(minScreen.x - x) < clientWidth*0.5) {
