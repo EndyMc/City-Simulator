@@ -1,0 +1,14 @@
+{
+    "tiles": {
+        "water": {
+            "image": "images/water_no_border.png",
+            "title": "Water",
+            "description": "Simple, almost drinkable water. Allows boats to travel with a large amount of goods."
+        },
+        "grass": {
+            "image": "images/grass.png",
+            "title": "Grass",
+            "description": "The most common plant in this world, many animals eat it to stay alive."
+        }
+    }
+}

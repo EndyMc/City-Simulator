@@ -1,3 +1,10 @@
+// Of some reason the server started behaving weirdly and stopped giving .js files
+// a Content-Type corresponding to that. Instead it gave them text/plain which the browser 
+// promptly rejected. Files with the ending .mjs (Javascript Module) were still seen as
+// javascript files though.
+
+// So even though this isn't a module, it carries that file-ending
+
 class Storage {
     static singleton = new Storage();
 

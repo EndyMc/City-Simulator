@@ -1,6 +1,6 @@
-import World, { Camera } from "./World.js";
-import Images from "./Images.js";
-import { Cursor } from "./index.js";
+import World, { Camera } from "./World.mjs";
+import Images from "./Images.mjs";
+import { Cursor } from "./index.mjs";
 
 export class Drawable {
     #width = this.size / Math.sqrt(3);

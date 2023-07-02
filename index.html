@@ -6,7 +6,12 @@
 
         <title>City Builder</title>
 
-        <script defer type="module" src="resources/index.js"></script>
+        <script>
+            window.clientWidth = innerWidth;
+            window.clientHeight = innerHeight;
+        </script>
+
+        <script defer type="module" src="resources/index.mjs"></script>
 
         <link rel="stylesheet" href="resources/index.css">
         <link rel="shortcut icon" href="images/favicon.png" type="image/png">

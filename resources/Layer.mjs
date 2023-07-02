@@ -1,5 +1,7 @@
 class Layer {
     #onRender = (ctx) => {};
+    #onClick = (x, y) => false;
+    #onHover = (x, y) => false;
 
     /**
      * @param {String} id The id of the canvas
@@ -24,10 +26,40 @@ class Layer {
     }
 
     /**
+     * @param {number} x 
+     * @param {number} y 
+     */
+    click(x, y) {
+        return this.#onClick(x, y);
+    }
+
+    /**
+     * @param {number} x 
+     * @param {number} y 
+     */
+    hover(x, y) {
+        return this.#onHover(x, y);
+    }
+
+    /**
      * @param {(ctx: CanvasRenderingContext2D) => void} value
      */
     set onRender(value) {
         this.#onRender = value;
+    }
+
+    /**
+     * @param {(x: number, y: number) => boolean} value
+     */
+    set onClick(value) {
+        this.#onClick = value;
+    }
+
+    /**
+     * @param {(x: number, y: number) => boolean} value
+     */
+    set onHover(value) {
+        this.#onHover = value;
     }
 }
 
@@ -47,11 +79,27 @@ export class LayerManager {
     }
 
     static layersRendered() {
-        Object.values(LayerManager.#layers).forEach(layer => layer.shouldRender = false);
+        Object.values(LayerManager.#layers)
+            .forEach(layer => layer.shouldRender = false);
     }
 
     static render() {
-        Object.values(LayerManager.#layers).forEach(layer => layer.render());
+        Object.values(LayerManager.#layers)
+            .forEach(layer => layer.render());
+    }
+
+    static onClick(x, y) {
+        Object.values(LayerManager.#layers)
+            .filter(() => true)
+            .reverse()
+            .find(layer => layer.click(x, y));
+    }
+
+    static onHover(x, y) {
+        Object.values(LayerManager.#layers)
+            .filter(() => true)
+            .reverse()
+            .find(layer => layer.hover(x, y));
     }
 
     static get layers() {

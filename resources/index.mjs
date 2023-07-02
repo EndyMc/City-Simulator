@@ -1,47 +1,106 @@
-import Images from "./Images.js";
-import TileManager from "./Drawable.js";
-import { Camera } from "./World.js";
-import { LayerManager } from "./Layer.js";
+import Images from "./Images.mjs";
+import TileManager from "./Drawable.mjs";
+import { Camera } from "./World.mjs";
+import { LayerManager } from "./Layer.mjs";
+import UI, { ShopItem } from "./UI.mjs";
+import { LoadingMenu } from "./Menu.mjs";
 
 window.init = async () => {
     onresize();
     navigator.storage.persist();
+
+    LoadingMenu.visible = true;
+    UI.visible = false;
 
     LayerManager.layers.world.onRender = (ctx) => {
         TileManager.getTiles().forEach(x => x.render(ctx));
     };
 
     LayerManager.layers.ui.onRender = (ctx) => {
-        Debugging.render(ctx);
+        LoadingMenu.render(ctx);
+        UI.render(ctx);
+        if (Debugging.enabled) Debugging.render(ctx);
     };
-    
-    drawText("Loading Textures");
+
+    LayerManager.layers.ui.onClick = (x, y) => {
+        if (UI.onClick(x, y)) {
+            LayerManager.shouldRenderLayer("ui");
+            return true;
+        }
+
+        return false;
+    };
+
+    LayerManager.layers.ui.onHover = (x, y) => {
+        Cursor.lastKnownPosition = { x, y };
+        LayerManager.shouldRenderLayer("ui");
+
+        if (UI.getBoxes().some(t => t.contains(x, y))) {
+            Cursor.deselectTile();
+//            UI.onHover(x, y);
+            return true;
+        }
+
+        return false;
+    }
+
+    LayerManager.layers.world.onHover = (x, y) => {
+        Cursor.lastKnownPosition = { x, y };
+        Cursor.updateSelectedTile();
+
+        return true;
+    }
+
+    LoadingMenu.loadingText = "Loading Textures";
     
     var textures = Images.textures;
     for (var i = 0; i < textures.length; i++) {
         var texture = textures[i];
         
-        drawText("Loading Texture: " + (i+1) + "/" + (textures.length));
+        LoadingMenu.currentProcessText = (i + 1) + "/" + textures.length;
         console.log("Loading Textures; %s/%s", i+1, textures.length);
+
         await Images.getImage(texture);
     }
 
-    drawText("Generating World");
+    LoadingMenu.loadingText = "Loading Items";
+
+    var categories = await (await fetch("data/items.json")).json();
+    var len = Object.keys(categories).length;
+    for (var i = 0; i < len; i++) {
+        LoadingMenu.currentProcessText = (i + 1) + "/" + len;
+        console.log("Loading Item Category; %s/%s", i+1, len);
+
+        var category = Object.keys(categories)[i];
+        var items = categories[category];
+
+        UI.SHOP_ITEMS[category] = [];
+        Object.entries(items).forEach((x, i) => {
+            var item = new ShopItem(i);
+
+            item.category = category;
+            item.title = x[1].title;
+            item.description = x[1].description;
+            item.image = x[1].image;
+
+            UI.SHOP_ITEMS[category].push(item);
+        });
+    }
+
+    LoadingMenu.loadingText = "Generating World";
     requestIdleCallback(async () => {
         await TileManager.generate();
         Camera.moveTo(0, 0);
+
+        LoadingMenu.visible = false;
+        UI.visible = true;
 
         render();
     }, { timeout: 100 });
 }
 
 export function drawText(text) {
-    var ctx = document.getElementById("ui-layer").getContext("2d");
-    var w = ctx.measureText(text).width;
-
-    ctx.font = "5vh Arial";
-    ctx.clearRect(0, 0, clientWidth, clientHeight);
-    ctx.fillText(text, (clientWidth - w) / 2, clientHeight / 2);
+    console.trace();
 }
 
 window.onresize = () => {
@@ -82,10 +141,28 @@ export class Cursor {
     static #selectedTile;
 
     static _onmousemove(evt) {
-        Cursor.#lastKnownPosition = { x: evt.clientX, y: evt.clientY };
-        Cursor.updateSelectedTile();
+        LayerManager.onHover(evt.clientX, evt.clientY);
+    }
+
+    static _onclick(evt) {
+        LayerManager.onClick(evt.clientX, evt.clientY);
+    }
+
+    static _onwheel(evt) {
+        if (evt.deltaY < 0) {
+            Camera.zoomIn();
+        } else if (evt.deltaY > 0) {
+            Camera.zoomOut();
+        }
     }
     
+    static deselectTile() {
+        if (Cursor.#selectedTile != undefined) {
+            Cursor.#selectedTile.selected = false;
+            LayerManager.shouldRenderLayer("world");
+        }
+    }
+
     /**
      * @returns {Tile}
      */
@@ -102,6 +179,14 @@ export class Cursor {
     }
 
     /**
+     * @param {{x: number, y: number}} value
+     */
+    static set lastKnownPosition(value) {
+        Cursor.#lastKnownPosition.x = value?.x || Cursor.#lastKnownPosition.x;
+        Cursor.#lastKnownPosition.y = value?.y || Cursor.#lastKnownPosition.y;
+    }
+
+    /**
      * @returns {{x: number, y: number}}
      */
     static getPosition() {
@@ -110,13 +195,8 @@ export class Cursor {
 }
 
 window.onmousemove = Cursor._onmousemove;
-window.onwheel = (evt) => {
-    if (evt.deltaY < 0) {
-        Camera.zoomIn();
-    } else if (evt.deltaY > 0) {
-        Camera.zoomOut();
-    }
-}
+window.onclick = Cursor._onclick;
+window.onwheel = Cursor._onwheel;
 
 var previousTimestamp = performance.now();
 function render(timestamp = performance.now()) {
@@ -154,8 +234,9 @@ class Debugging {
      * @param {CanvasRenderingContext2D} ctx 
      */
     static render(ctx) {
-        Debugging.#frames = Debugging.#frames.filter(x => x >= performance.now() - 1000);
-        Debugging.#frames.push(performance.now());
+        var time = performance.now();
+        Debugging.#frames = Debugging.#frames.filter(x => x > time - 1000);
+        Debugging.#frames.push(time);
 
         ctx.save();
             ctx.font = "5vh Arial";

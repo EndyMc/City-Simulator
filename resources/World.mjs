@@ -1,7 +1,8 @@
-import TileManager, { Tile, House, Drawable, Boat } from "./Drawable.js";
-import Images from "./Images.js";
-import { LayerManager } from "./Layer.js";
-import { Cursor, drawText } from "./index.js";
+import TileManager, { Tile, House, Drawable, Boat } from "./Drawable.mjs";
+import Images from "./Images.mjs";
+import { LayerManager } from "./Layer.mjs";
+import { LoadingMenu } from "./Menu.mjs";
+import { Cursor } from "./index.mjs";
 
 
 export default class World {
@@ -27,6 +28,9 @@ export default class World {
 
         tiles = World.#world.filter(t => t.x >= startX && t.x <= endX && t.z >= startZ && t.z <= endZ);        
         if (tiles.length > 0) {
+            LoadingMenu.loadingText = "Loading World";
+            LoadingMenu.currentProcessText = "";
+
             tiles = tiles.map(tile => {
                 if (Object.keys(Images.Tiles).includes(tile.type)) {
                     return new Tile(tile.x, tile.y, tile.z, tile.type);
@@ -69,12 +73,15 @@ export default class World {
             tileHash[hash].push(t);
         });
         
+        LoadingMenu.loadingText = "Interpolating World";
+
         // The higher the depth value is, the flatter the world is
         // A value of 10 seems to work well with the type of game I'm making
         var depth = 10;
-        for (var i = 0; i < depth; i++) {
-            console.log("Interpolating world; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
-            drawText("Interpolating world; Depth: " + (i+1) + "/" + depth);
+        for (var u = 0; u < depth; u++) {
+            console.log("Interpolating world; Depth: %s/%s; %sms", u+1, depth, performance.now() - start);
+            LoadingMenu.currentProcessText = (u + 1) + "/" + depth;
+
             await new Promise((resolve) => { requestIdleCallback(() => {
                 var interpolatedTiles = World.#interpolate(tiles, tileHash);
                 
@@ -102,11 +109,14 @@ export default class World {
             }
         }
 
+        LoadingMenu.loadingText = "Generating Dirt";
+
         var depth = World.WORLD_HEIGHT;
         var dirt = undefined;
         for (var i = 0; i < depth; i++) {
             console.log("Generating dirt; Depth: %s/%s; %sms", i+1, depth, performance.now() - start);
-            drawText("Generating dirt; Depth: " + (i+1) + "/" + depth);
+            LoadingMenu.currentProcessText = (i + 1) + "/" + depth;
+
             await new Promise((resolve) => { requestIdleCallback(() => {
                 dirt = World.#generateDirt([ ...tiles, ...connectedTiles ], dirt, tileHash);
 
@@ -123,7 +133,7 @@ export default class World {
         }
 
         console.log("Spawning houses; %sms", performance.now() - start);
-        drawText("Spawning houses");
+        LoadingMenu.loadingText = "Spawning houses";
         await new Promise((resolve) => { requestIdleCallback(() => { tiles.push(...World.#spawnHouses(tiles)); resolve(); }, { timeout: 100 }); });
 
         console.log("World generated; %sms", performance.now() - start);
@@ -204,6 +214,7 @@ export default class World {
      * @returns {House[]}
      */
     static #spawnHouses(tiles) {
+        return [];
         var houseTiles = [];
         tiles.forEach(tile => {
             if (tile.type == "GRASS" && Math.random() > 0.95) {
@@ -214,7 +225,6 @@ export default class World {
         var depth = 5;
         for (var i = 0; i < depth; i++) {
             console.log("Spawning houses; Depth: %s/%s", i+1, depth);
-            drawText("Spawning houses; Depth: " + (i+1) + "/" + depth);
             houseTiles = houseTiles.filter(tile => {
                 var neighbours = houseTiles.filter(t => t.x >= tile.x - 2 && t.x <= tile.x + 2 && t.z >= tile.z - 2 && t.z <= tile.z + 2);
                 return neighbours.length > 3;
@@ -233,7 +243,7 @@ class Storage {
     }
 
     constructor() {
-        this.worker = new Worker("resources/Storage_Worker.js");
+        this.worker = new Worker("resources/workers/Storage_Worker.mjs");
 
         var openRequest = indexedDB.open("city-builder", 1);
 

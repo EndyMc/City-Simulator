@@ -1,4 +1,4 @@
-import { Drawable } from "./Drawable.js";
+import { Drawable } from "./Drawable.mjs";
 
 export default class Images {
     static Tiles = {
@@ -36,7 +36,7 @@ export default class Images {
     }
 
     static get textures() {
-        return [ ...Object.values(Images.Tiles), Object.values(Images.Houses) ];
+        return [ ...Object.values(Images.Tiles), ...Object.values(Images.Houses), ...Object.values(Images.Boats) ];
     }
 
     static getImageFromCache(src) {
