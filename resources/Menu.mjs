@@ -33,6 +33,8 @@ export class LoadingMenu {
     static render(ctx) {
         if (!LoadingMenu.visible) return;
 
+        ctx.save();
+
         // Render Background
         if (LoadingMenu.background?.complete) {
             var scale = LoadingMenu.background.width / LoadingMenu.background.height;
@@ -77,5 +79,7 @@ export class LoadingMenu {
         ctx.font = "5vh Arial"
         ctx.fillStyle = "#a5c";
         ctx.fillRect(0, clientHeight - h, w, h);
+
+        ctx.restore();
     }
 }

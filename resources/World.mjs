@@ -6,6 +6,8 @@ import { Cursor } from "./index.mjs";
 
 
 export default class World {
+    static worker = new Worker("resources/workers/World_Generator.mjs");
+
     // Set this higher for more hilly terrain
     static WORLD_HEIGHT = 64;
 
@@ -16,13 +18,32 @@ export default class World {
     static MAX_X = 64;
     static MAX_Z = 64;
 
+    static LOWEST_POINT = Infinity;
+    static HIGHEST_POINT = -Infinity;
+
     static #world;
 
-    static async generate(tiles = [], startX = 0, startZ = 0, endX = World.MAX_X, endZ = World.MAX_Z, connectedTiles = []) {
+    static async generate(tiles = [], startX = 0 - 1, startZ = 0 - World.WORLD_HEIGHT, endX = World.MAX_X + 1, endZ = World.MAX_Z + World.WORLD_HEIGHT, connectedTiles = []) {
         var start = performance.now();
         var tileHash = {};
 
         console.log("Loading World");
+
+        return new Promise((resolve) => {
+            var callback = (event) => {
+                var data = event.data;
+                if (startX == data.startX && startZ == data.startZ && endX == data.endX && endZ == data.endZ) {
+                    removeEventListener("message", callback);
+                    resolve(data.tiles.map(t => {
+                        World.LOWEST_POINT = Math.min(World.LOWEST_POINT, t.y);
+                        World.HIGHEST_POINT = Math.max(World.HIGHEST_POINT, t.y);
+                        return new Tile(t.x, t.y, t.z, t.type);
+                    }));
+                }
+            };
+            World.worker.postMessage({ function: "generate", params: [ startX, startZ, endX, endZ ] });
+            World.worker.addEventListener("message", callback);
+        });
 
         if (World.#world == undefined) World.#world = await Storage.get().getAll();
 
@@ -234,90 +255,6 @@ export default class World {
         return houseTiles;
     }
 }
-
-class Storage {
-    static singleton = new Storage();
-
-    static get() {
-        return Storage.singleton;
-    }
-
-    constructor() {
-        this.worker = new Worker("resources/workers/Storage_Worker.mjs");
-
-        var openRequest = indexedDB.open("city-builder", 1);
-
-        // Called if this is the first time the DB was opened, AKA the DB was
-        // created and needs to have all of the neccessary objectStores inserted
-        openRequest.onupgradeneeded = () => {
-            console.log("OnUpgradeNeeded");
-            openRequest.result.createObjectStore("world");
-        }
-
-        openRequest.onsuccess = () => {
-            this.db = openRequest.result;
-        }
-
-        openRequest.onblocked = () => {
-            console.error("Database open request blocked");
-        };
-        
-        openRequest.onerror = (event) => {
-            console.error("Error opening database:", event.target.error);
-        };
-    }
-
-    async get(key) {
-        var transaction = this.db.transaction("world", "readonly");
-        var store = transaction.objectStore("world");
-        var request = store.get(key);
-
-        var result = await new Promise((resolve, reject) => {
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => {
-                console.error(request.error);
-                reject(request.error);
-            }
-        });
-
-        return result;
-    }
-
-    async getAll() {
-        if (this.db == undefined) return [];
-        var transaction = this.db.transaction("world", "readonly");
-        var store = transaction.objectStore("world");
-        var request = store.getAll();
-
-        var result = await new Promise((resolve, reject) => {
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => {
-                console.error(request.error);
-                reject(request.error);
-            }
-        });
-
-        return result;
-    }
-
-    saveAll(keys, values) {
-        this.worker.postMessage({ "function": "saveAll", params: [ keys, values ] });
-    }
-
-    save(key, data) {
-        this.worker.postMessage({ "function": "save", params: [ key, data ] });
-    }
-    
-    remove(key) {
-        this.worker.postMessage({ "function": "remove", params: [ key ] });
-    }
-
-    clear() {
-        this.worker.postMessage({ "function": "clear", params: [  ] });
-    }
-}
-
-window.s = Storage;
 
 export class Camera {
     static #position = { x: 0, z: 0 };

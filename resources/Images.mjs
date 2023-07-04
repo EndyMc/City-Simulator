@@ -4,7 +4,9 @@ export default class Images {
     static Tiles = {
         GRASS: "images/grass.png",
         DIRT: "images/dirt.png",
-        WATER: "images/water_no_border.png"
+        WATER: "images/water_no_border.png",
+        DEEP_WATER: "images/deep_water.png",
+        SAND: "images/sand.png"
     }
 
     static Houses = {
@@ -21,12 +23,11 @@ export default class Images {
         if (Images.cacheContains(src)) return Images.getImageFromCache(src);
         
         return new Promise((resolve) => {
-            var size = new Drawable().size;
             var image = new Image();
-
+            
             image.onload = async () => {
-                image = await createImageBitmap(image, { resizeHeight: size / 2 * Images.#upscale, resizeWidth: size / Math.sqrt(3) * Images.#upscale, resizeQuality: "pixelated" });
-
+                image = await scalePixelated(image, image.width * Images.#upscale, image.height * Images.#upscale);
+                
                 Images.#imageCache[src] = image;
                 resolve(image);
             }
@@ -47,3 +48,20 @@ export default class Images {
         return Images.getImageFromCache(src) != undefined;
     }
 }
+
+async function scalePixelated(image, width, height) {
+    return new Promise(resolve => {
+        var canvas = document.createElement("canvas");
+        var ctx = canvas.getContext("2d");
+        
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(image, 0, 0, width, height);
+        
+        canvas.toBlob(async b => resolve(await createImageBitmap(b)));
+    });
+}
+
+window.images = Images;

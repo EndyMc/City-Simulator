@@ -1,10 +1,12 @@
 import World, { Camera } from "./World.mjs";
 import Images from "./Images.mjs";
 import { Cursor } from "./index.mjs";
+import { LoadingMenu } from "./Menu.mjs";
+import UI from "./UI.mjs";
 
 export class Drawable {
-    #width = this.size / Math.sqrt(3);
-    #height = this.size / 2;
+    #width = this.size;
+    #height = this.size;
 
     #image = undefined;
 
@@ -28,11 +30,11 @@ export class Drawable {
     }
 
     set width(_) {
-        this.#width = this.size / Math.sqrt(3);
+        this.#width = this.size;
     }
     
     set height(_) {
-        this.#height = this.size / 2;
+        this.#height = this.size;
     }
 
     get width() {
@@ -79,22 +81,54 @@ export class Drawable {
         var y = position.y;
         var w = this.width;
         var h = this.height;
-
-        ctx.drawImage(img, x, y, w, h);
-
+        
+        
+        if (true || this.type == "WATER" || this.type == "SAND") {
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(img, x, y, w, h);
+        } else {
+            var c = (this.y-World.LOWEST_POINT)/(World.HIGHEST_POINT-World.LOWEST_POINT) * 255;
+            var { x, y } = this.getMiddlePoint();
+            var bounds = this.getBoundingBox();
+            ctx.save();
+                ctx.fillStyle = "rgb(" + c + "," + c + "," + c + ")";
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                    ctx.moveTo(position.x, y);
+                    ctx.lineTo(x, position.y);
+                    ctx.lineTo(bounds.x2, y);
+                    ctx.lineTo(x, position.y + this.width / 1.5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                    ctx.moveTo(x, position.y + this.height);
+                    ctx.lineTo(position.x + this.width, bounds.y2);
+                    ctx.lineTo(position.x + this.width, y);
+                    ctx.lineTo(x, position.y + this.width / 1.5);
+                    ctx.lineTo(position.x, y);
+                    ctx.lineTo(position.x, bounds.y2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            ctx.restore();
+        }
+                
         if (this.selected) {
             var { x, y } = this.getMiddlePoint();
             var bounds = this.getBoundingBox();
-            
+
             // Hover effect
             ctx.save();
                 ctx.fillStyle = "white";
                 ctx.globalAlpha = 0.2;
                 ctx.beginPath();
-                ctx.moveTo(bounds.x1, y);
-                ctx.lineTo(x, bounds.y1);
-                ctx.lineTo(bounds.x2, y);
-                ctx.lineTo(x, position.y + this.width / Math.sqrt(3));
+                    ctx.moveTo(bounds.x1, y);
+                    ctx.lineTo(x, bounds.y1);
+                    ctx.lineTo(bounds.x2, y);
+                    ctx.lineTo(x, position.y + this.width / 1.5);
                 ctx.closePath();
                 ctx.fill();
             ctx.restore();
@@ -123,7 +157,7 @@ export class Drawable {
 
         return {
             up: { x, y: bounds.y1 },
-            down: { x, y: position.y + this.width / Math.sqrt(3) },
+            down: { x, y: position.y + this.width / 1.5 },
             left: { x: bounds.x1, y },
             right: { x: bounds.x2, y }
         }
@@ -246,7 +280,7 @@ export class Drawable {
 
         return {
             x: (position?.x + this.width / 2) || -1,
-            y: (position?.y + this.width / Math.sqrt(3) / 2) || -1
+            y: (position?.y + this.width / 1.5 / 2) || -1
         }
     }
 
@@ -339,6 +373,9 @@ export default class TileManager {
             }
             TileManager.#tileHashes[hash].push(t);
         });
+
+        LoadingMenu.visible = false;
+        UI.visible = true;
         
         Camera.moveBy(0, 0);
         Camera.generatingTerrain = false;

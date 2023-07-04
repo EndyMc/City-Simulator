@@ -30,6 +30,8 @@ class Layer {
      * @param {number} y 
      */
     click(x, y) {
+        x = clientWidth / innerWidth * x;
+        y = clientHeight / innerHeight * y;
         return this.#onClick(x, y);
     }
 
@@ -38,6 +40,8 @@ class Layer {
      * @param {number} y 
      */
     hover(x, y) {
+        x = clientWidth / innerWidth * x;
+        y = clientHeight / innerHeight * y;
         return this.#onHover(x, y);
     }
 

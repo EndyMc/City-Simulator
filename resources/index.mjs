@@ -88,19 +88,11 @@ window.init = async () => {
     }
 
     LoadingMenu.loadingText = "Generating World";
-    requestIdleCallback(async () => {
-        await TileManager.generate();
-        Camera.moveTo(0, 0);
 
-        LoadingMenu.visible = false;
-        UI.visible = true;
+    TileManager.generate();
+    Camera.moveTo(0, 0);
 
-        render();
-    }, { timeout: 100 });
-}
-
-export function drawText(text) {
-    console.trace();
+    render();
 }
 
 window.onresize = () => {
@@ -239,7 +231,7 @@ class Debugging {
         Debugging.#frames.push(time);
 
         ctx.save();
-            ctx.font = "5vh Arial";
+            ctx.font = "16px Arial";
             ctx.fillStyle = "black";
             ctx.fillText("FPS: " + Debugging.#frames.length, 0.01 * clientHeight, 0.045 * clientHeight);
         ctx.restore();
