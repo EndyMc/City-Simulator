@@ -1,15 +1,5 @@
-importScripts("../Storage.mjs");
-
 const WORLD_HEIGHT = 64;
 const WATER_LEVEL = Math.round(WORLD_HEIGHT / 2) - 1;
-
-var world = undefined;
-
-async function load(startX, startZ, endX, endZ) {
-    if (world == undefined) world = await Storage.get().getAll();
-
-    return world.filter(t => t.x >= startX && t.x <= endX && t.z >= startZ && t.z <= endZ);
-}
 
 self.onmessage = (event) => {
     var data = event.data;
@@ -17,11 +7,16 @@ self.onmessage = (event) => {
 }
 
 async function generate(startX, startZ, endX, endZ) {
-    var tiles = await load(startX, startZ, endX, endZ);
+    var tiles = [];
     var tileHash = [];
 
     // If there's anything stored, return that.
     if (tiles.length > 0) {
+        self.postMessage({ tiles, startX, startZ, endX, endZ });
+        return;
+    }
+
+    if (isNaN(endX - startX) || isNaN (endZ - startZ)) {
         self.postMessage({ tiles, startX, startZ, endX, endZ });
         return;
     }
@@ -44,7 +39,7 @@ async function generate(startX, startZ, endX, endZ) {
     // Interpolate the height, so that the world is smoother
     var maxDepth = 10;
     for (var depth = 0; depth < maxDepth; depth++) {
-        var heights = interpolate(tiles, tileHash);
+        var heights = interpolate(tiles, tileHash);//getHeightMap(Math.ceil(Math.sqrt(tiles.length)), Math.ceil(Math.sqrt(tiles.length)), 16, 32);
         for (var i = 0; i < tiles.length; i++) {
             tiles[i].y = heights[i];
         }
@@ -55,7 +50,7 @@ async function generate(startX, startZ, endX, endZ) {
     for (var i = 0; i < tiles.length; i++) {
         var tile = tiles[i];
         if (tile.y <= WATER_LEVEL) {
-            var neighbours = getNeighbours(tileHash, tile.x, tile.z, 1);
+            var neighbours = getNeighbours(tileHash, tile.x, tile.z, 2);
             if ((neighbours.every(t => t.type.includes("WATER") || t.y <= WATER_LEVEL + 0.5))) {
                 tile.type = "DEEP_WATER";
                 tile.y = WATER_LEVEL + 0.3;
@@ -67,12 +62,16 @@ async function generate(startX, startZ, endX, endZ) {
     }
 
     for (var i = 0; i < tiles.length; i++) {
-        if (tiles[i].type != "DEEP_WATER") continue;
+        if (tiles[i].type != "DEEP_WATER" && tiles[i].type != "WATER") continue;
 
         var tile = tiles[i];
-        if (getNeighbours(tileHash, tile.x, tile.z, 0.5).every(t => t.type == "WATER")) {
+        var neighbours = getNeighbours(tileHash, tile.x, tile.z, 0.5);
+        if (tile.type == "DEEP_WATER" && !neighbours.some(t => t.type == "DEEP_WATER")) {
             tile.type = "WATER";
             tile.y = WATER_LEVEL + 0.5;
+        } else if (tile.type == "WATER" && !neighbours.some(t => t.type == "WATER")) {
+            tile.type = "GRASS";
+            tile.y = WATER_LEVEL + 1;
         }
     }
 
@@ -106,10 +105,37 @@ async function generate(startX, startZ, endX, endZ) {
             tileHash[hash].push(tile);
         });
     }
-    
+
     self.postMessage({ tiles, startX, startZ, endX, endZ });
     return;
 }
+
+function getHeightMap(WIDTH, HEIGHT, NODE_COUNT, MAX = 255) {
+//    var pixels = new Array(WIDTH).fill().map(() => new Array(HEIGHT).fill());
+    var points = new Array(NODE_COUNT).fill().map(() => { return { x: Math.random() * WIDTH, y: Math.random() * HEIGHT }; });
+    
+    var pixels = [];
+    for (var y = 0; y < HEIGHT; y++) {
+        for (var x = 0; x < WIDTH; x++) {
+            // Distance to nearest point
+            var nearestPoint = points.map((p) => Math.hypot(x - p.x, y - p.y)).sort((a, b) => a - b)[0];
+    
+            // Calculate a lightvalue based on that distance
+            pixels.push(Math.max(0, Math.min(MAX, Math.floor(MAX / 20 * nearestPoint))));
+        }
+    }
+
+    return pixels;
+    return pixels.flatMap((row, y) => {
+      return row.map((_, x) => {
+        // Distance to nearest point
+        var nearestPoint = points.map((p) => Math.hypot(x - p.x, y - p.y)).sort((a, b) => a - b)[0];
+  
+        // Calculate a lightvalue based on that distance
+        return Math.max(0, Math.min(MAX, Math.floor(MAX / 20 * nearestPoint)));
+      });
+    });
+  }
 
 function getHash(x, z) {
     return Math.round(x*10) + "|" + Math.round(z*10);

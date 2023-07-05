@@ -1,3 +1,5 @@
+import { Debugging } from "./index.mjs";
+
 class Layer {
     #onRender = (ctx) => {};
     #onClick = (x, y) => false;
@@ -8,6 +10,7 @@ class Layer {
      * @param {(ctx: CanvasRenderingContext2D) => void} onRender A function which will be called every frame
      */
     constructor(id, onRender) {
+        this.id = id;
         this.canvas = document.getElementById(id);
         /**
          * @type {CanvasRenderingContext2D}
@@ -19,10 +22,15 @@ class Layer {
     }
 
     render() {
+        Debugging.renderTimes[this.id] = 0;
         if (!this.shouldRender) return;
+
+        var start = performance.now();
 
         this.ctx.clearRect(0, 0, clientWidth, clientHeight);
         this.#onRender(this.ctx);
+
+        Debugging.renderTimes[this.id] = performance.now() - start;
     }
 
     /**

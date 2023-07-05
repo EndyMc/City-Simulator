@@ -3,6 +3,7 @@ import Images from "./Images.mjs";
 import { Cursor } from "./index.mjs";
 import { LoadingMenu } from "./Menu.mjs";
 import UI from "./UI.mjs";
+import { Segment } from "./Segment.mjs";
 
 export class Drawable {
     #width = this.size;
@@ -55,11 +56,14 @@ export class Drawable {
 
     get image() {
         if (this.#image == undefined) {
-            if (!Images.cacheContains(this.imagePath)) return;
-            this.#image = Images.getImageFromCache(this.imagePath);
+            this.#image = Images.getImageFromCache(this.imagePath, this.width, this.height);
         }
         
         return this.#image;
+    }
+
+    set image(value) {
+        this.#image = value;
     }
 
     static getHash(x, z) {
@@ -70,68 +74,93 @@ export class Drawable {
      * Render this tile
      * @param {CanvasRenderingContext2D} ctx 
      */
-    render(ctx) {
+    render(ctx, ignoreOutOfBounds) {
         if (this.image == undefined) return;
 
-        var position = this.getScreenPosition();
+        var position = this.getScreenPosition(ignoreOutOfBounds);
         if (position == undefined) return;
 
-        var img = this.image;
         var x = position.x;
         var y = position.y;
-        var w = this.width;
-        var h = this.height;
         
-        
-        if (true || this.type == "WATER" || this.type == "SAND") {
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(img, x, y, w, h);
-        } else {
-            var c = (this.y-World.LOWEST_POINT)/(World.HIGHEST_POINT-World.LOWEST_POINT) * 255;
-            var { x, y } = this.getMiddlePoint();
-            var bounds = this.getBoundingBox();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(this.image, x, y);
+
+        var { x, y } = this.getMiddlePoint();
+        var bounds = this.getBoundingBox();
+        var outlineColor = "black";
+
+        return;
+
+        if ((this.type != "WATER" && this.type != "DEEP_WATER")) {
+//            var c = (this.y - World.LOWEST_POINT)/(World.HIGHEST_POINT-World.LOWEST_POINT) * 255;
             ctx.save();
-                ctx.fillStyle = "rgb(" + c + "," + c + "," + c + ")";
-                ctx.strokeStyle = "white";
-                ctx.lineWidth = 1;
+//                ctx.fillStyle = "rgb(" + c + "," + c + "," + c + ")";
+                ctx.strokeStyle = outlineColor;
+                ctx.lineWidth = 0.005 * 1/2 * clientHeight * Camera.zoom;
+                
+                // Left Side
+                ctx.beginPath();
+                    ctx.moveTo(position.x, y);
+                    ctx.lineTo(position.x, position.y + this.width / 1.5);
+                ctx.stroke();
+
+                // Right Side
+                ctx.beginPath();
+                    ctx.moveTo(position.x + this.width, y);
+                    ctx.lineTo(position.x + this.width, position.y + this.width / 1.5);
+                    ctx.moveTo(x, position.y + this.height);
+                    ctx.lineTo(x, position.y + this.width / 1.5);
+                ctx.stroke();
+
+                // Top
                 ctx.beginPath();
                     ctx.moveTo(position.x, y);
                     ctx.lineTo(x, position.y);
                     ctx.lineTo(bounds.x2, y);
                     ctx.lineTo(x, position.y + this.width / 1.5);
                 ctx.closePath();
-                ctx.fill();
                 ctx.stroke();
-                
-                ctx.beginPath();
-                    ctx.moveTo(x, position.y + this.height);
-                    ctx.lineTo(position.x + this.width, bounds.y2);
-                    ctx.lineTo(position.x + this.width, y);
-                    ctx.lineTo(x, position.y + this.width / 1.5);
-                    ctx.lineTo(position.x, y);
-                    ctx.lineTo(position.x, bounds.y2);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-            ctx.restore();
-        }
-                
-        if (this.selected) {
-            var { x, y } = this.getMiddlePoint();
-            var bounds = this.getBoundingBox();
 
-            // Hover effect
-            ctx.save();
-                ctx.fillStyle = "white";
-                ctx.globalAlpha = 0.2;
-                ctx.beginPath();
-                    ctx.moveTo(bounds.x1, y);
-                    ctx.lineTo(x, bounds.y1);
-                    ctx.lineTo(bounds.x2, y);
-                    ctx.lineTo(x, position.y + this.width / 1.5);
-                ctx.closePath();
-                ctx.fill();
+
+//                ctx.beginPath();
+//                    ctx.moveTo(x, position.y + this.height);
+//                    ctx.lineTo(position.x + this.width, position.y + this.width / 1.5);
+//                    ctx.lineTo(position.x + this.width, y);
+//                    ctx.lineTo(x, position.y + this.width / 1.5);
+//                    ctx.lineTo(position.x, y);
+//                    ctx.lineTo(position.x, position.y + this.width / 1.5);
+//                ctx.closePath();
+//                ctx.fill();
+//                ctx.stroke();
             ctx.restore();
+        } else {
+            if (TileManager.getTile(this.x - 0.5, Math.floor(this.y + 1), this.z - 0.5) != undefined) {
+                ctx.save();
+                    ctx.strokeStyle = outlineColor;
+                    ctx.lineWidth = 0.005 * 1/2 * clientHeight * Camera.zoom;
+                    ctx.beginPath();
+                        ctx.moveTo(x, position.y);
+                        ctx.lineTo(position.x, y);
+                    ctx.stroke();
+                ctx.restore();
+            }
+
+            if (TileManager.getTile(this.x + 0.5, Math.floor(this.y + 1), this.z - 0.5) != undefined) {
+                ctx.save();
+                    ctx.strokeStyle = outlineColor;
+                    ctx.lineWidth = 0.005 * 1/2 * clientHeight * Camera.zoom;
+                    ctx.beginPath();
+                        ctx.moveTo(x, position.y);
+                        ctx.lineTo(position.x + this.width, y);
+                    ctx.stroke();
+                ctx.restore();
+            }
+        }
+        
+        if (this.selected) {
+            // Hover effect
+            ctx.drawImage(Images.getImageFromCache(Images.Internal.hover), position.x, position.y, this.width, this.height / 1.5);
         }
     }
 
@@ -351,7 +380,7 @@ export default class TileManager {
     }
 
     static getTile(x, y, z) {
-        return TileManager.#tileHashes[new Drawable(x, y, z).hash].find(t => t.y == y);
+        return TileManager.#tileHashes[Drawable.getHash(x, z)]?.find(t => t.y == y);
     }
 
     static getTileHashes() {

@@ -10,12 +10,14 @@ export class LoadingMenu {
     static get loadingText() { return LoadingMenu.#loadingText; }
     static set loadingText(value) {
         LoadingMenu.#loadingText = value;
+        LayerManager.shouldRenderLayer("ui");
     }
 
 
     static get currentProcessText() { return LoadingMenu.#currentProcessText; }
     static set currentProcessText(value) {
         LoadingMenu.#currentProcessText = value;
+        LayerManager.shouldRenderLayer("ui");
     }
 
     static totalProgress = 0.0;
@@ -70,13 +72,13 @@ export class LoadingMenu {
         ctx.textAlign = "center";
 
         ctx.fillStyle = "black";
+        ctx.font = 0.05 * clientHeight + "px Arial"
         ctx.fillText(text, clientWidth / 2, clientHeight - (0.2*clientHeight) / 2, clientWidth * 0.5);
 
         // Render Bar to show total progress
         var w = LoadingMenu.totalProgress * clientWidth;
         var h = 0.02 * clientHeight;
 
-        ctx.font = "5vh Arial"
         ctx.fillStyle = "#a5c";
         ctx.fillRect(0, clientHeight - h, w, h);
 

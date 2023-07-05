@@ -1,6 +1,8 @@
-import { Drawable } from "./Drawable.mjs";
-
 export default class Images {
+    static Internal = {
+        hover: "internal:hover"
+    }
+
     static Tiles = {
         GRASS: "images/grass.png",
         DIRT: "images/dirt.png",
@@ -17,51 +19,102 @@ export default class Images {
         VARIANT_1: "images/boat_1.png"
     }
 
-    static #imageCache = {};
-    static #upscale = 10;
-    static async getImage(src) {
-        if (Images.cacheContains(src)) return Images.getImageFromCache(src);
-        
-        return new Promise((resolve) => {
-            var image = new Image();
-            
-            image.onload = async () => {
-                image = await scalePixelated(image, image.width * Images.#upscale, image.height * Images.#upscale);
-                
-                Images.#imageCache[src] = image;
-                resolve(image);
-            }
+    static addImage(image, src) {
+        Images.#imageCache[src] = Images.#imageCache[src] || {};
+        Images.#imageCache[src][0 + ":" + 0] = Images.#imageCache[src][0 + ":" + 0] || image;
+        Images.#imageCache[src][image.width + ":" + image.height] = image;
+    }
 
-            image.src = src;
-        });
+    static getInternalImage(src) {
+        if (!src.startsWith("internal:")) throw "Trying to fetch non-internal image";
+        return self[src]();
+    }
+
+    static #imageCache = {};
+    static getImage(src, width = 0, height = 0) {
+        width = Math.round(width);
+        height = Math.round(height);
+
+        if (Images.cacheContains(src, width, height)) return Images.getImageFromCache(src, width, height);
+        
+        if (src.startsWith("internal:")) {
+            var image = Images.getInternalImage(src);
+            Images.addImage(image, src);
+            return image;
+        }
+
+        if (Images.cacheContains(src, 0, 0)) {
+            var image = Images.getImageFromCache(src, 0, 0);
+
+            image = scalePixelated(image, width, height);
+
+            Images.addImage(image, src);
+
+            return image;
+        }
+
+        throw "Image not generated";
     }
 
     static get textures() {
-        return [ ...Object.values(Images.Tiles), ...Object.values(Images.Houses), ...Object.values(Images.Boats) ];
+        return [ ...Object.values(Images.Tiles), ...Object.values(Images.Houses), ...Object.values(Images.Boats), ...Object.values(Images.Internal) ];
     }
 
-    static getImageFromCache(src) {
-        return Images.#imageCache[src];
+    static getImageFromCache(src, width = 0, height = 0) {
+        width = Math.round(width);
+        height = Math.round(height);
+
+        return Images.#imageCache[src]?.[width + ":" + height];
     }
 
-    static cacheContains(src) {
-        return Images.getImageFromCache(src) != undefined;
+    static cacheContains(src, width = 0, height = 0) {
+        width = Math.round(width);
+        height = Math.round(height);
+
+        return Images.getImageFromCache(src, width, height) != undefined;
+    }
+
+    static getHover() {
+        return Images.getImageFromCache("internal:hover");
     }
 }
 
-async function scalePixelated(image, width, height) {
-    return new Promise(resolve => {
-        var canvas = document.createElement("canvas");
-        var ctx = canvas.getContext("2d");
-        
-        canvas.width = width;
-        canvas.height = height;
+function scalePixelated(image, width, height) {
+    var canvas = document.createElement("canvas");
+    var ctx = canvas.getContext("2d");
 
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(image, 0, 0, width, height);
-        
-        canvas.toBlob(async b => resolve(await createImageBitmap(b)));
-    });
+    width = Math.round(width);
+    height = Math.round(height);
+    
+    canvas.width = width;
+    canvas.height = height;
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(image, 0, 0, width, height);
+    
+    return canvas;
 }
 
-window.images = Images;
+self[Images.Internal.hover] = () => {
+    var canvas = document.createElement("canvas");
+
+    canvas.width = 64;
+    canvas.height = 48;
+
+    var ctx = canvas.getContext("2d");
+
+    var x = canvas.width / 2;
+    var y = canvas.height / 2;
+
+    ctx.fillStyle = "white";
+    ctx.globalAlpha = 0.2;
+    ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(x, 0);
+        ctx.lineTo(canvas.width, y);
+        ctx.lineTo(x, canvas.height);
+    ctx.closePath();
+    ctx.fill();
+
+    return canvas;
+}

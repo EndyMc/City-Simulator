@@ -1,5 +1,5 @@
 import Images from "./Images.mjs";
-import TileManager from "./Drawable.mjs";
+import TileManager, { Drawable } from "./Drawable.mjs";
 import { Camera } from "./World.mjs";
 import { LayerManager } from "./Layer.mjs";
 import UI, { ShopItem } from "./UI.mjs";
@@ -13,6 +13,11 @@ window.init = async () => {
     UI.visible = false;
 
     LayerManager.layers.world.onRender = (ctx) => {
+//        Segment.SEGMENTS.forEach(x => {
+//            var image = x.getImage();
+//            if (image == undefined) return;
+//            ctx.drawImage(image, 0, 0);
+//        })
         TileManager.getTiles().forEach(x => x.render(ctx));
     };
 
@@ -51,16 +56,30 @@ window.init = async () => {
         return true;
     }
 
+    render();
+
     LoadingMenu.loadingText = "Loading Textures";
     
     var textures = Images.textures;
+    var tile = new Drawable();
     for (var i = 0; i < textures.length; i++) {
         var texture = textures[i];
         
         LoadingMenu.currentProcessText = (i + 1) + "/" + textures.length;
         console.log("Loading Textures; %s/%s", i+1, textures.length);
 
-        await Images.getImage(texture);
+        var image = await new Promise(resolve => {
+            if (texture.startsWith("internal:")) {
+                resolve(Images.getInternalImage(texture));
+            } else {
+                var img = new Image();
+                img.onload = () => resolve(img);
+                img.src = texture;
+            }
+        });
+
+        Images.addImage(image, texture);
+        Images.getImage(texture, tile.width, tile.height);
     }
 
     LoadingMenu.loadingText = "Loading Items";
@@ -88,21 +107,30 @@ window.init = async () => {
     }
 
     LoadingMenu.loadingText = "Generating World";
+    LoadingMenu.currentProcessText = "";
 
     TileManager.generate();
     Camera.moveTo(0, 0);
 
-    render();
 }
 
 window.onresize = () => {
-    window.clientWidth = innerWidth;
-    window.clientHeight = innerHeight;
+    window.clientWidth = innerWidth*2;
+    window.clientHeight = innerHeight*2;
+
+    var updatedImages = {};
 
     TileManager.getTiles().forEach(tile => {
         // Update width and height
         tile.width = 0;
         tile.height = 0;
+
+        if (updatedImages[tile.imagePath] == undefined) {
+            updatedImages[tile.imagePath] = true;
+            tile.image = Images.getImage(tile.imagePath, tile.width, tile.height);
+        } else {
+            tile.image = Images.getImageFromCache(tile.imagePath, tile.width, tile.height);
+        }
     });
 
     Object.values(LayerManager.layers).forEach(layer => {
@@ -197,29 +225,40 @@ function render(timestamp = performance.now()) {
     var delta = timestamp - previousTimestamp;
     previousTimestamp = timestamp;
     
-    var velocity = 1/2 * delta;
-    if (window.keys["shift"] != undefined) {
-        velocity = 3/2 * delta;
-    }
-
-    if (window.keys["w"] != undefined) {
-        Camera.moveBy(0, -velocity);
-    } if (window.keys["a"] != undefined) {
-        Camera.moveBy(-velocity, 0);
-    } if (window.keys["s"] != undefined) {
-        Camera.moveBy(0, velocity);
-    } if (window.keys["d"] != undefined) {
-        Camera.moveBy(velocity, 0);
-    }
+    handleCameraMovement(delta);
 
     if (Debugging.enabled) LayerManager.shouldRenderLayer("ui");
     LayerManager.render();
     LayerManager.layersRendered();
 }
 
-class Debugging {
+function handleCameraMovement(delta) {
+    var velocity = (clientWidth / 2560) * 1/2 * delta;
+    var xVel = 0;
+    var yVel = 0;
+    if (window.keys["shift"] != undefined) {
+        velocity = (clientWidth / 2560) * 3/2 * delta;
+    }
+
+    if (window.keys["w"] != undefined) {
+        yVel -= velocity;
+    } if (window.keys["a"] != undefined) {
+        xVel -= velocity;
+    } if (window.keys["s"] != undefined) {
+        yVel += velocity;
+    } if (window.keys["d"] != undefined) {
+        xVel += velocity;
+    }
+
+    if (xVel != 0 || yVel != 0) {
+        Camera.moveBy(xVel, yVel);
+    }
+}
+
+export class Debugging {
     static #frames = [];
     static enabled = true;
+    static renderTimes = {};
 
     /**
      * 
@@ -231,9 +270,15 @@ class Debugging {
         Debugging.#frames.push(time);
 
         ctx.save();
-            ctx.font = "16px Arial";
-            ctx.fillStyle = "black";
+            ctx.font = 0.05 * clientHeight + "px Arial";
+            ctx.fillStyle = "white";
             ctx.fillText("FPS: " + Debugging.#frames.length, 0.01 * clientHeight, 0.045 * clientHeight);
+
+            ctx.font = 0.01 * clientHeight + "px Arial";
+            var times = Object.entries(Debugging.renderTimes);
+            for (var i = 0; i < times.length; i++) {
+                ctx.fillText(times[i][0] + ": " + times[i][1] + "ms", 0.01 * clientHeight, 0.05 * clientHeight + (0.005 * clientHeight + 0.01 * clientHeight) * (i + 1));
+            }
         ctx.restore();
     }
 }

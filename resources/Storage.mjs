@@ -1,4 +1,4 @@
-class Storage {
+export class Storage {
     static singleton = new Storage();
 
     static get() {
@@ -6,7 +6,7 @@ class Storage {
     }
 
     constructor() {
-        this.worker = new Worker("Storage_Worker.mjs");
+        this.worker = new Worker("resources/workers/Storage_Worker.mjs");
 
         var openRequest = indexedDB.open("city-builder", 1);
 

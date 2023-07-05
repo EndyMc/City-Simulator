@@ -1,7 +1,8 @@
-import TileManager, { Tile, House, Drawable, Boat } from "./Drawable.mjs";
+import TileManager, { Tile, House, Drawable } from "./Drawable.mjs";
 import Images from "./Images.mjs";
 import { LayerManager } from "./Layer.mjs";
 import { LoadingMenu } from "./Menu.mjs";
+import { Storage } from "./Storage.mjs";
 import { Cursor } from "./index.mjs";
 
 
@@ -18,27 +19,48 @@ export default class World {
     static MAX_X = 64;
     static MAX_Z = 64;
 
-    static LOWEST_POINT = Infinity;
-    static HIGHEST_POINT = -Infinity;
+    static LOWEST_POINT = World.WORLD_HEIGHT;
+    static HIGHEST_POINT = 0;
 
     static #world;
 
     static async generate(tiles = [], startX = 0 - 1, startZ = 0 - World.WORLD_HEIGHT, endX = World.MAX_X + 1, endZ = World.MAX_Z + World.WORLD_HEIGHT, connectedTiles = []) {
         var start = performance.now();
         var tileHash = {};
-
+        
         console.log("Loading World");
+        if (World.#world == undefined) World.#world = await Storage.get().getAll();
+
+        tiles.push(...World.#world.filter(t => t.x >= startX && t.x <= endX && t.z >= startZ && t.z <= endZ));
+
+        if (tiles.length > 0) {
+            console.log("World found in Storage");
+            return tiles.map(t => {
+                World.LOWEST_POINT = Math.min(World.LOWEST_POINT, t.y);
+                World.HIGHEST_POINT = Math.max(World.HIGHEST_POINT, t.y);
+
+                return new Tile(t.x, t.y, t.z, t.type);
+            });
+        }
+
+        console.log("World not found in Storage\nGenerating new World");
 
         return new Promise((resolve) => {
             var callback = (event) => {
                 var data = event.data;
                 if (startX == data.startX && startZ == data.startZ && endX == data.endX && endZ == data.endZ) {
                     removeEventListener("message", callback);
-                    resolve(data.tiles.map(t => {
+
+                    var tiles = data.tiles.map(t => {
                         World.LOWEST_POINT = Math.min(World.LOWEST_POINT, t.y);
                         World.HIGHEST_POINT = Math.max(World.HIGHEST_POINT, t.y);
+
                         return new Tile(t.x, t.y, t.z, t.type);
-                    }));
+                    });
+
+                    Storage.get().saveAll(tiles.map(t => t.key), tiles.map(t => t.toString()));
+
+                    resolve(tiles);
                 }
             };
             World.worker.postMessage({ function: "generate", params: [ startX, startZ, endX, endZ ] });
@@ -260,6 +282,9 @@ export class Camera {
     static #position = { x: 0, z: 0 };
     static #zoom = 1;
 
+    static MAX_ZOOM = 3;
+    static MIN_ZOOM = 0.5;
+
     /**
      * Move the camera
      * @param {number} x 
@@ -272,6 +297,7 @@ export class Camera {
     }
 
     static generatingTerrain = false;
+
     /**
      * Move the camera
      * @param {number} x 
@@ -316,6 +342,14 @@ export class Camera {
         Camera.#position = { x, z };
     }
     
+    static get width() {
+        return clientWidth / Camera.zoom;
+    }
+
+    static get height() {
+        return clientHeight / Camera.zoom;
+    }
+
     /**
      * @returns {{x: number, z: number}} The position of the camera
      */
@@ -324,11 +358,19 @@ export class Camera {
     }
 
     static zoomOut() {
-        Camera.zoom /= 1.1;
+        if (Camera.zoom <= Camera.MIN_ZOOM) {
+            return;
+        }
+
+        Camera.zoom = Math.max(Camera.MIN_ZOOM, Camera.zoom * 0.9);
     }
 
     static zoomIn() {
-        Camera.zoom *= 1.1;
+        if (Camera.zoom >= Camera.MAX_ZOOM) {
+            return;
+        }
+
+        Camera.zoom = Math.min(Camera.MAX_ZOOM, Camera.zoom * 1.1);
     }
 
     static get zoom() {
@@ -347,6 +389,8 @@ export class Camera {
             Camera.moveBy(0, 0);
             return;
         }
+        
+        var updatedImages = {};
 
         Cursor.updateSelectedTile();
         LayerManager.shouldRenderLayer("world");
@@ -354,6 +398,14 @@ export class Camera {
             // Update width and height
             tile.width = 0;
             tile.height = 0;
+
+            if (updatedImages[tile.imagePath] == undefined && !Images.cacheContains(tile.imagePath, tile.width, tile.height)) {
+                tile.image = Images.getImage(tile.imagePath, tile.width, tile.height);
+            } else {
+                tile.image = Images.getImageFromCache(tile.imagePath, tile.width, tile.height);
+            }
+
+            updatedImages[tile.imagePath] = true;
         });
     }
 }
