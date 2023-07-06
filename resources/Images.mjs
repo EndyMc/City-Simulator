@@ -5,7 +5,7 @@ export default class Images {
 
     static Tiles = {
         GRASS: "images/grass.png",
-        DIRT: "images/dirt.png",
+        DIRT: "images/dirt_no_border.png",
         WATER: "images/water_no_border.png",
         DEEP_WATER: "images/deep_water.png",
         SAND: "images/sand.png"
@@ -17,6 +17,10 @@ export default class Images {
 
     static Boats = {
         VARIANT_1: "images/boat_1.png"
+    }
+
+    static get cache() {
+        return Images.#imageCache;
     }
 
     static addImage(image, src) {
@@ -118,3 +122,4 @@ self[Images.Internal.hover] = () => {
 
     return canvas;
 }
+window.images = Images;

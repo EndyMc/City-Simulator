@@ -74,25 +74,30 @@ export class Drawable {
      * Render this tile
      * @param {CanvasRenderingContext2D} ctx 
      */
-    render(ctx, ignoreOutOfBounds) {
+    render(ctx, offset) {
         if (this.image == undefined) return;
 
-        var position = this.getScreenPosition(ignoreOutOfBounds);
-        if (position == undefined) return;
+        var position = this.getScreenPosition(offset != undefined);
+        if (position == undefined && offset == undefined) return;
 
-        var x = position.x;
-        var y = position.y;
+        var x = position.x - (offset == undefined ? 0 : offset.x);
+        var y = position.y - (offset == undefined ? 0 : offset.y);
         
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(this.image, x, y);
+
+        if (this.selected) {
+            // Hover effect
+            ctx.drawImage(Images.getImageFromCache(Images.Internal.hover), position.x, position.y, this.width, this.height / 1.5);
+        }
+        
+        return;
 
         var { x, y } = this.getMiddlePoint();
         var bounds = this.getBoundingBox();
         var outlineColor = "black";
 
-        return;
-
-        if ((this.type != "WATER" && this.type != "DEEP_WATER")) {
+        if (!(this.type == "WATER" || this.type == "DEEP_WATER")) {
 //            var c = (this.y - World.LOWEST_POINT)/(World.HIGHEST_POINT-World.LOWEST_POINT) * 255;
             ctx.save();
 //                ctx.fillStyle = "rgb(" + c + "," + c + "," + c + ")";
@@ -121,7 +126,6 @@ export class Drawable {
                     ctx.lineTo(x, position.y + this.width / 1.5);
                 ctx.closePath();
                 ctx.stroke();
-
 
 //                ctx.beginPath();
 //                    ctx.moveTo(x, position.y + this.height);
@@ -156,11 +160,6 @@ export class Drawable {
                     ctx.stroke();
                 ctx.restore();
             }
-        }
-        
-        if (this.selected) {
-            // Hover effect
-            ctx.drawImage(Images.getImageFromCache(Images.Internal.hover), position.x, position.y, this.width, this.height / 1.5);
         }
     }
 
@@ -387,9 +386,9 @@ export default class TileManager {
         return TileManager.#tileHashes;
     }
 
-    static async generate(tiles, startX, startZ, endX, endZ, connectedTiles) {
+    static async generate(tiles = [], startX = 0 - 1, startZ = 0 - World.WORLD_HEIGHT, endX = World.MAX_X + 1, endZ = World.MAX_Z + World.WORLD_HEIGHT, connectedTiles = []) {
         TileManager.#tiles.push(...(await World.generate(tiles, startX, startZ, endX, endZ, connectedTiles)));
-
+    
         TileManager.#tiles.sort((a, b) => (a.y) - (b.y));
         TileManager.#tiles.sort((a, b) => (a.z) - (b.z));
         
@@ -402,6 +401,15 @@ export default class TileManager {
             }
             TileManager.#tileHashes[hash].push(t);
         });
+
+        for (var z = startZ; z < endZ; z += Segment.HEIGHT * 2 + 1) {
+            for (var x = startX; x < endX; x += Segment.WIDTH * 2 + 1) {
+                Segment.SEGMENTS.push(new Segment(x, z));
+            }
+            Segment.SEGMENTS.push(new Segment(x, z));
+        }
+
+        Segment.SEGMENTS.sort((a, b) => a.z - b.z);
 
         LoadingMenu.visible = false;
         UI.visible = true;

@@ -4,6 +4,7 @@ import { Camera } from "./World.mjs";
 import { LayerManager } from "./Layer.mjs";
 import UI, { ShopItem } from "./UI.mjs";
 import { LoadingMenu } from "./Menu.mjs";
+import { Segment } from "./Segment.mjs";
 
 window.init = async () => {
     onresize();
@@ -13,12 +14,24 @@ window.init = async () => {
     UI.visible = false;
 
     LayerManager.layers.world.onRender = (ctx) => {
-//        Segment.SEGMENTS.forEach(x => {
-//            var image = x.getImage();
-//            if (image == undefined) return;
-//            ctx.drawImage(image, 0, 0);
-//        })
-        TileManager.getTiles().forEach(x => x.render(ctx));
+//        TileManager.getTiles().forEach(x => x.render(ctx));
+
+        Segment.SEGMENTS.forEach(s => {
+            var image = s.getImage();
+            if (image == undefined) return;
+
+            var bounds = s.getBounds();
+            if (bounds.x2 < 0 || bounds.y2 < 0 || bounds.x1 > clientWidth || bounds.y1 > clientHeight) return;
+
+            ctx.drawImage(image, bounds.x1, bounds.y1, s.width, s.height);
+        });
+
+        // Hover effect
+        var tile = Cursor.getSelectedTile();
+        if (tile == undefined) return;
+
+        var position = tile.getScreenPosition();
+        ctx.drawImage(Images.getImageFromCache(Images.Internal.hover), position.x, position.y, tile.width, tile.height / 1.5);
     };
 
     LayerManager.layers.ui.onRender = (ctx) => {
@@ -133,6 +146,11 @@ window.onresize = () => {
         }
     });
 
+    Segment.SEGMENTS.forEach(s => {
+        s.width = 0;
+        s.height = 0;
+    });
+
     Object.values(LayerManager.layers).forEach(layer => {
         layer.canvas.width = clientWidth;
         layer.canvas.height = clientHeight;
@@ -221,7 +239,8 @@ window.onwheel = Cursor._onwheel;
 var previousTimestamp = performance.now();
 function render(timestamp = performance.now()) {
     requestAnimationFrame(render);
-
+    
+    var start = performance.now();
     var delta = timestamp - previousTimestamp;
     previousTimestamp = timestamp;
     
@@ -230,14 +249,16 @@ function render(timestamp = performance.now()) {
     if (Debugging.enabled) LayerManager.shouldRenderLayer("ui");
     LayerManager.render();
     LayerManager.layersRendered();
+
+    Debugging.renderTimes["total"] = performance.now() - start;
 }
 
 function handleCameraMovement(delta) {
-    var velocity = (clientWidth / 2560) * 1/2 * delta;
+    var velocity = (clientWidth / screen.width) * 1/2 * delta;
     var xVel = 0;
     var yVel = 0;
     if (window.keys["shift"] != undefined) {
-        velocity = (clientWidth / 2560) * 3/2 * delta;
+        velocity = (clientWidth / screen.width) * 3/2 * delta;
     }
 
     if (window.keys["w"] != undefined) {
@@ -274,10 +295,20 @@ export class Debugging {
             ctx.fillStyle = "white";
             ctx.fillText("FPS: " + Debugging.#frames.length, 0.01 * clientHeight, 0.045 * clientHeight);
 
-            ctx.font = 0.01 * clientHeight + "px Arial";
+            ctx.font = 0.02 * clientHeight + "px Arial";
             var times = Object.entries(Debugging.renderTimes);
             for (var i = 0; i < times.length; i++) {
-                ctx.fillText(times[i][0] + ": " + times[i][1] + "ms", 0.01 * clientHeight, 0.05 * clientHeight + (0.005 * clientHeight + 0.01 * clientHeight) * (i + 1));
+                if (times[i][1] > 16) {
+                    ctx.fillStyle = "yellow";
+                } else if (times[i][1] > 33) {
+                    ctx.fillStyle = "orange"
+                } else if (times[i][1] > 100) {
+                    ctx.fillStyle = "red";
+                } else {
+                    ctx.fillStyle = "white";
+                }
+
+                ctx.fillText(times[i][0] + ": " + times[i][1] + "ms", 0.01 * clientHeight, 0.05 * clientHeight + (0.005 * clientHeight + 0.02 * clientHeight) * (i + 1));
             }
         ctx.restore();
     }
