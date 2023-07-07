@@ -291,7 +291,10 @@ export class Camera {
      * @param {number} z 
      */
     static moveBy(x = 0, z = 0) {
-        Camera.moveTo(Camera.getPosition().x + x, Camera.getPosition().z + z);
+        var moved = Camera.moveTo(Camera.getPosition().x + x, Camera.getPosition().z + z);
+
+        if (!moved) return;
+
         LayerManager.shouldRenderLayer("world");
         Cursor.updateSelectedTile();
     }
@@ -310,6 +313,8 @@ export class Camera {
 
         x = Math.min(middlePoint.x - clientWidth, Math.max(0, x));
         z = Math.min(middlePoint.y - clientHeight, Math.max(0, z));
+
+        if (Camera.#position.x == x && Camera.#position.z == z) return false;
 
         if (!Camera.generatingTerrain) {
             var tiles = TileManager.getTiles();
@@ -340,6 +345,7 @@ export class Camera {
         }
 
         Camera.#position = { x, z };
+        return true;
     }
     
     static get width() {

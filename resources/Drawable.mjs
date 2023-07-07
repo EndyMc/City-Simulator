@@ -4,6 +4,7 @@ import { Cursor } from "./index.mjs";
 import { LoadingMenu } from "./Menu.mjs";
 import UI from "./UI.mjs";
 import { Segment } from "./Segment.mjs";
+import { LayerManager } from "./Layer.mjs";
 
 export class Drawable {
     #width = this.size;
@@ -76,19 +77,30 @@ export class Drawable {
      */
     render(ctx, offset) {
         if (this.image == undefined) return;
-
-        var position = this.getScreenPosition(offset != undefined);
+        
+        var position = this.getScreenPosition(offset != undefined, offset != undefined ? { width: offset.width, height: offset.height } : undefined);
         if (position == undefined && offset == undefined) return;
+
+        if (offset != undefined) {
+            this.#width = offset.width;
+            this.#height = offset.height;
+        }
 
         var x = position.x - (offset == undefined ? 0 : offset.x);
         var y = position.y - (offset == undefined ? 0 : offset.y);
         
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(this.image, x, y);
+        ctx.drawImage(this.image, x, y, this.width, this.height);
 
         if (this.selected) {
             // Hover effect
             ctx.drawImage(Images.getImageFromCache(Images.Internal.hover), position.x, position.y, this.width, this.height / 1.5);
+        }
+
+        if (offset != undefined) {
+            // Return these values to their rightful state
+            this.width = 0;
+            this.height = 0;
         }
         
         return;
@@ -166,14 +178,17 @@ export class Drawable {
     /**
      * @returns {{x: number, y: number}}
      */
-    getScreenPosition(ignoreOutOfBounds = false) {
+    getScreenPosition(ignoreOutOfBounds = false, size = {}) {
+        size.width = size.width || this.width;
+        size.height = size.height || this.height;
+
         var cameraPosition = Camera.getPosition();
 
-        var x = this.x * this.width - (ignoreOutOfBounds ? 0 : cameraPosition.x);
-        if (!ignoreOutOfBounds && (x + this.width < 0 || x > clientWidth)) return;
+        var x = this.x * size.width - (ignoreOutOfBounds ? 0 : cameraPosition.x);
+        if (!ignoreOutOfBounds && (x + size.width < 0 || x > clientWidth)) return;
 
-        var y = this.z * this.height * (2/3) - this.y * this.height / 3 - (ignoreOutOfBounds ? 0 : cameraPosition.z);
-        if (!ignoreOutOfBounds && (y + this.height < 0 || y > clientHeight)) return;
+        var y = this.z * size.height * (2/3) - this.y * size.height / 3 - (ignoreOutOfBounds ? 0 : cameraPosition.z);
+        if (!ignoreOutOfBounds && (y + size.height < 0 || y > clientHeight)) return;
 
         return { x, y };
     }
@@ -293,8 +308,14 @@ export class Drawable {
         }
 
         var right = intersectHorizontal({ k: 0, m: invertedCursorPosition.y }, { m: 0, k: -sides.south_east }, { x: bounds.down.x, y: 0 }, { x: bounds.right.x, y: bounds.right.y }) || intersectHorizontal({ k: 0, m: invertedCursorPosition.y }, { m: bounds.down.y, k: -sides.north_east }, { x: bounds.up.x, y: bounds.right.y }, { x: bounds.right.x, y: bounds.down.y });
+        if (!right) return false;
+
         var left = intersectHorizontal({ k: 0, m: invertedCursorPosition.y }, { m: 0, k: -sides.south_west }, { x: bounds.left.x, y: 0 }, { x: bounds.down.x, y: bounds.left.y }) || intersectHorizontal({ k: 0, m: invertedCursorPosition.y }, { m: bounds.down.y, k: -sides.north_west }, { x: bounds.left.x, y: bounds.left.y }, { x: bounds.up.x, y: bounds.down.y });
+        if (!left) return false;
+
         var up = intersectVertical(invertedCursorPosition.x, { m: bounds.down.y, k: -sides.north_west }, { x: bounds.left.x, y: bounds.left.y }, { x: bounds.down.x, y: bounds.down.y }) || intersectVertical(invertedCursorPosition.x, { m: bounds.down.y, k: -sides.north_east }, { x: bounds.up.x, y: bounds.right.y }, { x: bounds.right.x, y: bounds.down.y });
+        if (!up) return false;
+
         var down = intersectVertical(invertedCursorPosition.x, { m: 0, k: -sides.south_west }, { x: bounds.left.x, y: 0 }, { x: bounds.down.x, y: bounds.left.y }) || intersectVertical(invertedCursorPosition.x, { m: 0, k: -sides.south_east }, { x: bounds.down.x, y: 0 }, { x: bounds.right.x, y: bounds.right.y });
 
         return up && down && right && left;
@@ -411,6 +432,8 @@ export default class TileManager {
 
         Segment.SEGMENTS.sort((a, b) => a.z - b.z);
 
+        LayerManager.shouldRenderLayer("world");
+
         LoadingMenu.visible = false;
         UI.visible = true;
         
@@ -437,8 +460,8 @@ export default class TileManager {
         // Sort by y-coordinate
         .sort((a, b) => b.y - a.y)
             
-            // Sort by z-coordinate
-            .sort((a, b) => b.z - a.z)
+        // Sort by z-coordinate
+        .sort((a, b) => b.z - a.z);
 
         // Return to most likely one
         return candidates?.[0] || Cursor.getSelectedTile();

@@ -6,6 +6,9 @@ export class Segment {
     static WIDTH = 5;
     static HEIGHT = 0;
 
+    TILE_WIDTH = 64;
+    TILE_HEIGHT = 48;
+
     /**
      * @type {Tile}
      */
@@ -22,7 +25,6 @@ export class Segment {
     #tiles = [];
 
     #canvas = document.createElement("canvas");
-    #image;
 
     #width = 0;
     #height = 0;
@@ -35,7 +37,7 @@ export class Segment {
         var xPositions = this.#tiles.map(t => t.getScreenPosition(true).x);
 
         var minX = Math.min(...xPositions);
-        var maxX = Math.max(...xPositions) + new Drawable().width;
+        var maxX = Math.max(...xPositions) + this.#left.width;
 
         
         this.#width = (maxX - minX) / Camera.zoom;
@@ -45,7 +47,7 @@ export class Segment {
         var yPositions = this.#tiles.map(t => t.getScreenPosition(true).y);
 
         var minY = Math.min(...yPositions);
-        var maxY = Math.max(...yPositions) + new Drawable().height;
+        var maxY = Math.max(...yPositions) + this.#upper.height;
 
         this.#height = (maxY - minY) / Camera.zoom;
     }
@@ -78,10 +80,13 @@ export class Segment {
 
         this.calculateDimensions();
         this.updateImage();
+
+        this.width = 0;
+        this.height = 0;
     }
 
     calculateDimensions() {
-        var positions = this.#tiles.map(t => t.getScreenPosition(true));
+        var positions = this.#tiles.map(t => t.getScreenPosition(true, { width: this.TILE_WIDTH, height: this.TILE_HEIGHT }));
 
         var xPositions = positions.map(t => t.x);
         var yPositions = positions.map(t => t.y);
@@ -89,36 +94,32 @@ export class Segment {
         var minX = Math.min(...xPositions);
         var minY = Math.min(...yPositions);
 
+        var maxX = Math.max(...xPositions) + this.TILE_WIDTH;
+        var maxY = Math.max(...yPositions) + this.TILE_HEIGHT;
+
         this.#left = this.#tiles[positions.findIndex(t => t.x == minX)];
         this.#upper = this.#tiles[positions.findIndex(t => t.y == minY)];
 
-        this.width = 0;
-        this.height = 0;
+        this.#width = (maxX - minX) / Camera.zoom;
+        this.#height = (maxY - minY) / Camera.zoom;
 
         this.#canvas.width = this.#width;
         this.#canvas.height = this.#height;
     }
 
     updateImage() {
-        var image = undefined;//Images.getImageFromCache(this.getId());
-        if (image != undefined) {
-            this.#image = image;
-            return;
-        } else if (this.#tiles.length == 0) {
+        if (this.#tiles.length == 0) {
             throw "Invalid amount of tiles";
         }
 
         var ctx = this.#canvas.getContext("2d");
 
-        this.#tiles.forEach(t => t.render(ctx, this.getScreenPosition(true)));
-        
-        this.#image = this.#canvas;
-
-//        Images.addImage(this.#image, this.getId());
+        var offset = { width: this.TILE_WIDTH, height: this.TILE_HEIGHT, ...this.getScreenPosition(true, { width: this.TILE_WIDTH, height: this.TILE_HEIGHT }) };
+        this.#tiles.forEach(t => t.render(ctx, offset));
     }
 
     getImage() {
-        return this.#image;
+        return this.#canvas;
     }
 
     /**
@@ -138,11 +139,11 @@ export class Segment {
         }
     }
 
-    getScreenPosition(ignoreOutOfBounds) {
-        var x = this.#left?.getScreenPosition(ignoreOutOfBounds)?.x;
+    getScreenPosition(ignoreOutOfBounds, size) {
+        var x = this.#left?.getScreenPosition(ignoreOutOfBounds, size)?.x;
         if (x == undefined) return;
 
-        var y = this.#upper?.getScreenPosition(ignoreOutOfBounds)?.y;
+        var y = this.#upper?.getScreenPosition(ignoreOutOfBounds, size)?.y;
         if (y == undefined) return;
 
         return { x, y };
