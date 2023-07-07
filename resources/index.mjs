@@ -23,6 +23,7 @@ window.init = async () => {
             var bounds = s.getBounds();
             if (bounds.x2 < 0 || bounds.y2 < 0 || bounds.x1 > clientWidth || bounds.y1 > clientHeight) return;
 
+            ctx.imageSmoothingEnabled = false;
             ctx.drawImage(image, bounds.x1, bounds.y1, s.width, s.height);
         });
 
