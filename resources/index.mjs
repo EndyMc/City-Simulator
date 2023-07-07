@@ -32,6 +32,8 @@ window.init = async () => {
         if (tile == undefined) return;
 
         var position = tile.getScreenPosition();
+        if (position == undefined) return;
+
         ctx.drawImage(Images.getImageFromCache(Images.Internal.hover), position.x, position.y, tile.width, tile.height / 1.5);
     };
 
@@ -240,17 +242,20 @@ window.onwheel = Cursor._onwheel;
 var previousTimestamp = performance.now();
 function render(timestamp = performance.now()) {
     requestAnimationFrame(render);
-    
+
     var start = performance.now();
     var delta = timestamp - previousTimestamp;
     previousTimestamp = timestamp;
     
     handleCameraMovement(delta);
-
+    
     if (Debugging.enabled) LayerManager.shouldRenderLayer("ui");
+    var startRender = performance.now();
     LayerManager.render();
+    Debugging.renderTimes["total-render"] = performance.now() - startRender;
+    
     LayerManager.layersRendered();
-
+    
     Debugging.renderTimes["total"] = performance.now() - start;
 }
 
@@ -272,9 +277,11 @@ function handleCameraMovement(delta) {
         xVel += velocity;
     }
 
+    var startCameraMovement = performance.now();
     if (xVel != 0 || yVel != 0) {
         Camera.moveBy(xVel, yVel);
     }
+    Debugging.renderTimes["camera-movement"] = performance.now() - startCameraMovement;
 }
 
 export class Debugging {

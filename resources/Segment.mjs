@@ -1,5 +1,6 @@
 import TileManager, { Drawable, Tile } from "./Drawable.mjs";
 import Images from "./Images.mjs";
+import { LinkedList } from "./LinkedList.mjs";
 import { Camera } from "./World.mjs";
 
 export class Segment {
@@ -38,7 +39,6 @@ export class Segment {
 
         var minX = Math.min(...xPositions);
         var maxX = Math.max(...xPositions) + this.#left.width;
-
         
         this.#width = (maxX - minX) / Camera.zoom;
     }
@@ -158,9 +158,9 @@ export class Segment {
     }
 
     /**
-     * @type {Segment[]}
+     * @type {LinkedList<Segment>}
      */
-    static SEGMENTS = [];
+    static SEGMENTS = new LinkedList();
 }
 
 window.seg = Segment;

@@ -3,7 +3,7 @@ import Images from "./Images.mjs";
 import { LayerManager } from "./Layer.mjs";
 import { LoadingMenu } from "./Menu.mjs";
 import { Storage } from "./Storage.mjs";
-import { Cursor } from "./index.mjs";
+import { Cursor, Debugging } from "./index.mjs";
 
 
 export default class World {
@@ -316,7 +316,9 @@ export class Camera {
 
         if (Camera.#position.x == x && Camera.#position.z == z) return false;
 
-        if (!Camera.generatingTerrain) {
+        // Dynamic terrain generation
+        // Not needed at the moment and only adds lag
+        /*if (!Camera.generatingTerrain) {
             var tiles = TileManager.getTiles();
             
             var tileX = tiles.map(t => t.x);
@@ -342,7 +344,7 @@ export class Camera {
             } else {
                 Camera.generatingTerrain = false;
             }
-        }
+        }*/
 
         Camera.#position = { x, z };
         return true;

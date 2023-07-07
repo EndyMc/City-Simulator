@@ -425,12 +425,12 @@ export default class TileManager {
 
         for (var z = startZ; z < endZ; z += Segment.HEIGHT * 2 + 1) {
             for (var x = startX; x < endX; x += Segment.WIDTH * 2 + 1) {
-                Segment.SEGMENTS.push(new Segment(x, z));
+                Segment.SEGMENTS.add(new Segment(x, z));
             }
-            Segment.SEGMENTS.push(new Segment(x, z));
+            Segment.SEGMENTS.add(new Segment(x, z));
         }
 
-        Segment.SEGMENTS.sort((a, b) => a.z - b.z);
+//        Segment.SEGMENTS.sort((a, b) => a.z - b.z);
 
         LayerManager.shouldRenderLayer("world");
 
@@ -447,16 +447,32 @@ export default class TileManager {
 
     static getHighlightedTile(screenX, screenY) {
         // Get candidates for which tiles are the most likely to be the one the user hovers
-        var candidates = TileManager.#tiles.filter(tile => {
-            if (!(tile instanceof Tile)) {
-                // Don't check houses and other such entities
-                return false;
-            }
-            
-            tile.selected = false;
+        var segments = Segment.SEGMENTS.filter(s => {
+            var bounds = s.getBounds();
+            return screenX >= bounds.x1 && screenY >= bounds.y1 && screenX <= bounds.x2 && screenY <= bounds.y2;
+        });
 
-            return tile.contains(screenX, screenY);
-        })
+        if (segments.length == 0) return Cursor.getSelectedTile();
+
+        var candidates = [];
+        segments.forEach(s => {
+            var list = s.getTiles().filter(tile => {
+                if (!(tile instanceof Tile)) {
+                    // Don't check houses and other such entities
+                    return false;
+                }
+                
+                tile.selected = false;
+
+                return tile.contains(screenX, screenY);
+            });
+
+            list.forEach(val => {
+                candidates.push(val);
+            });
+        });
+
+        candidates
         // Sort by y-coordinate
         .sort((a, b) => b.y - a.y)
             
