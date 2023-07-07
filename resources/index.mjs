@@ -1,5 +1,5 @@
 import Images from "./Images.mjs";
-import TileManager, { Drawable } from "./Drawable.mjs";
+import TileManager, { Drawable, Tile } from "./Drawable.mjs";
 import { Camera } from "./World.mjs";
 import { LayerManager } from "./Layer.mjs";
 import UI, { ShopItem } from "./UI.mjs";
@@ -17,22 +17,20 @@ window.init = async () => {
 //        TileManager.getTiles().forEach(x => x.render(ctx));
 
         Segment.SEGMENTS.forEach(s => {
-            var image = s.getImage();
-            if (image == undefined) return;
-
-            var bounds = s.getBounds();
-            if (bounds.x2 < 0 || bounds.y2 < 0 || bounds.x1 > clientWidth || bounds.y1 > clientHeight) return;
-
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(image, bounds.x1, bounds.y1, s.width, s.height);
+            var tiles = s.getTiles();
+            if (tiles.includes(Cursor.getSelectedTile())) {
+                tiles.forEach(x => x.render(ctx));
+            } else {
+                var image = s.getImage();
+                if (image == undefined) return;
+    
+                var bounds = s.getBounds();
+                if (bounds.x2 < 0 || bounds.y2 < 0 || bounds.x1 > clientWidth || bounds.y1 > clientHeight) return;
+    
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(image, bounds.x1, bounds.y1, s.width, s.height);    
+            }
         });
-
-        // Hover effect
-        var tile = Cursor.getSelectedTile();
-        if (tile == undefined) return;
-
-        var position = tile.getScreenPosition();
-        ctx.drawImage(Images.getImageFromCache(Images.Internal.hover), position.x, position.y, tile.width, tile.height / 1.5);
     };
 
     LayerManager.layers.ui.onRender = (ctx) => {
@@ -54,7 +52,7 @@ window.init = async () => {
         Cursor.lastKnownPosition = { x, y };
         LayerManager.shouldRenderLayer("ui");
 
-        if (UI.getBoxes().some(t => t.contains(x, y))) {
+        if (UI.getBoxes().some(t => t.visible && t.contains(x, y))) {
             Cursor.deselectTile();
 //            UI.onHover(x, y);
             return true;
@@ -240,17 +238,20 @@ window.onwheel = Cursor._onwheel;
 var previousTimestamp = performance.now();
 function render(timestamp = performance.now()) {
     requestAnimationFrame(render);
-    
+
     var start = performance.now();
     var delta = timestamp - previousTimestamp;
     previousTimestamp = timestamp;
     
     handleCameraMovement(delta);
-
+    
     if (Debugging.enabled) LayerManager.shouldRenderLayer("ui");
+    var startRender = performance.now();
     LayerManager.render();
+    Debugging.renderTimes["total-render"] = performance.now() - startRender;
+    
     LayerManager.layersRendered();
-
+    
     Debugging.renderTimes["total"] = performance.now() - start;
 }
 
@@ -272,9 +273,11 @@ function handleCameraMovement(delta) {
         xVel += velocity;
     }
 
+    var startCameraMovement = performance.now();
     if (xVel != 0 || yVel != 0) {
         Camera.moveBy(xVel, yVel);
     }
+    Debugging.renderTimes["camera-movement"] = performance.now() - startCameraMovement;
 }
 
 export class Debugging {

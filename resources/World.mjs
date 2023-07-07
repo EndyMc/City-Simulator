@@ -316,7 +316,9 @@ export class Camera {
 
         if (Camera.#position.x == x && Camera.#position.z == z) return false;
 
-        if (!Camera.generatingTerrain) {
+        // Dynamic terrain generation
+        // Not needed at the moment and only adds lag
+        /*if (!Camera.generatingTerrain) {
             var tiles = TileManager.getTiles();
             
             var tileX = tiles.map(t => t.x);
@@ -342,7 +344,7 @@ export class Camera {
             } else {
                 Camera.generatingTerrain = false;
             }
-        }
+        }*/
 
         Camera.#position = { x, z };
         return true;
