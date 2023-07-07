@@ -3,7 +3,7 @@ import Images from "./Images.mjs";
 import { LayerManager } from "./Layer.mjs";
 import { LoadingMenu } from "./Menu.mjs";
 import { Storage } from "./Storage.mjs";
-import { Cursor, Debugging } from "./index.mjs";
+import { Cursor } from "./index.mjs";
 
 
 export default class World {

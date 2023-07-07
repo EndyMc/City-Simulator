@@ -1,5 +1,4 @@
 import Images from "./Images.mjs";
-import { LayerManager } from "./Layer.mjs";
 import { Cursor } from "./index.mjs";
 
 class Box {
@@ -46,6 +45,8 @@ class Box {
         this.#opacity = style?.opacity || this.#opacity;
         this.#border.size = style?.borderWidth || this.#border.size;
         this.#border.color = style?.borderColor || this.#backgroundColor;
+
+        this.visible = true;
     }
 
     get rawX() { return this.#x; }
@@ -235,7 +236,7 @@ class ItemInfo {
 
     #box = new Box(this.position.x, this.position.y, this.width, this.height, 5e-3, { background: "white", opacity: 1 }, () => true, () => true);
     #buttons = {
-        exit: { x: this.position.x + 0.01 * ShopItem.aspectRatio, y: this.position.y + 0.01, w: this.#box.rawWidth / 5 * ShopItem.aspectRatio, h: this.#box.rawWidth / 5, onClick: () => this.#visible = false }
+        exit: { x: this.position.x + 0.01 * ShopItem.aspectRatio, y: this.position.y + 0.01, w: this.#box.rawWidth / 5 * ShopItem.aspectRatio, h: this.#box.rawWidth / 5, onClick: () => { this.#visible = false; this.#box.visible = false; } }
     };
 
     get box() {
@@ -336,7 +337,7 @@ class ItemInfo {
             ctx.lineWidth = 5;
             ctx.lineCap = "round"
             ctx.strokeStyle = "red";
-                ctx.stroke();
+            ctx.stroke();
     }
 
     onClick(x, y) {
@@ -354,6 +355,8 @@ class ItemInfo {
 
     show(title, description, image, cost) {
         this.#visible = true;
+        this.#box.visible = true;
+
         this.#title = title;
         this.#description = description;
         this.#image = image;
@@ -430,5 +433,7 @@ export default class UI {
         return false;
     }
 }
+
+UI.ITEM_INFO.box.visible = false;
 
 window.ui = UI;
