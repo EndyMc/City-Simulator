@@ -49,6 +49,16 @@ class Box {
         this.visible = true;
     }
 
+    set width(value) {
+        if (value > 1 || value < 0) return;
+        this.#width = value;
+    }
+
+    set height(value) {
+        if (value > 1 || value < 0) return;
+        this.#width = value;
+    }
+
     get rawX() { return this.#x; }
     get x() { return this.#x * clientWidth; }
 
@@ -63,6 +73,11 @@ class Box {
 
     get rawRadii() { return this.#radii; }
     get radii() { return this.#radii * clientWidth; }
+
+    set position(value) {
+        this.#x = value?.x || this.#x;
+        this.#y = value?.y || this.#y;
+    }
 
     /**
      * 
@@ -115,7 +130,6 @@ class Box {
 }
 
 export class ShopItem {
-    #box;
     #image;
     #title;
     #description;
@@ -123,18 +137,14 @@ export class ShopItem {
     #cost;
     
     static get aspectRatio() {
-        return innerHeight/innerWidth;
+        return clientHeight/clientWidth;
     }
 
-    static get CONTAINER_WIDTH() { return ShopItem.aspectRatio * 0.099; }
+    static get CONTAINER_WIDTH() { return ShopItem.aspectRatio * 0.1; }
     static get CONTAINER_HEIGHT() { return 0.1; }
 
     get width() { return ShopItem.aspectRatio * 0.075; }
     get height() { return 0.075; }
-
-    get box() {
-        return this.#box;
-    }
 
     /**
      * @param {string} path 
@@ -169,9 +179,7 @@ export class ShopItem {
         this.position = {
             x: UI.SHOP_BACKGROUND.rawX + (ShopItem.CONTAINER_WIDTH * index) + (ShopItem.CONTAINER_WIDTH - this.width ) / 2,
             y: UI.SHOP_BACKGROUND.rawY + (ShopItem.CONTAINER_HEIGHT - this.height) / 2,
-        }
-
-        this.#box = new Box(this.position.x, this.position.y, this.width, this.height, 1e-3, { background: "white", opacity: 0.5 }, () => this.#onClick());
+        }        
     }
 
     /**
@@ -180,21 +188,36 @@ export class ShopItem {
     render(ctx) {
         ctx.save();
         var cursorPosition = Cursor.getPosition();
-        if (this.#box.contains(cursorPosition.x, cursorPosition.y)) {
+
+        var x = this.position.x * clientWidth;
+        var y = this.position.y * clientHeight;
+
+        var width = this.width * clientWidth;
+        var height = this.height * clientHeight;
+        
+        if (this.contains(cursorPosition.x, cursorPosition.y)) {
             document.body.style.cursor = "pointer";
             this.hover = true;
-            this.#box.render(ctx);
+
+            ctx.save();
+            ctx.beginPath();
+                ctx.roundRect(x, y, width, height, 0.003 * clientWidth);
+
+                ctx.fillStyle = "white";
+                ctx.globalAlpha = 0.5;
+                ctx.fill();
+            ctx.restore();
 
             ctx.beginPath();
-                ctx.roundRect(this.#box.x - this.#box.width / 2, this.#box.y - this.#box.height / 1.5, this.#box.width * 2, this.#box.height / 2, 5);
+                ctx.roundRect(x - width / 2, y - height / 1.5, width * 2, height / 2, 5);
                 
                 ctx.fillStyle = "white";
                 ctx.fill();
 
             ctx.beginPath();
-                ctx.moveTo(this.#box.x, this.#box.y - this.#box.height / 2);
-                ctx.lineTo(this.#box.x + this.#box.width / 2, this.#box.y);
-                ctx.lineTo(this.#box.x + this.#box.width, this.#box.y - this.#box.height / 2);
+                ctx.moveTo(x, y - height / 2);
+                ctx.lineTo(x + width / 2, y);
+                ctx.lineTo(x + width, y - height / 2);
 
                 ctx.fill();
 
@@ -202,22 +225,35 @@ export class ShopItem {
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.font = "1vw Arial";
-                ctx.fillText(this.#title, this.#box.x + this.#box.width / 2, this.#box.y - this.#box.height / 1.5 + this.#box.height / 4, this.#box.width * 2);
-
+                ctx.fillText(this.#title, x + width / 2, y - height / 1.5 + height / 4, width * 2);
         } else if (this.hover == true) {
             this.hover = false;
             document.body.style.cursor = "default";
         }
         
         if (this.#image != undefined) {
-            ctx.drawImage(this.#image, this.position.x * clientWidth, this.position.y * clientHeight, this.width * clientWidth, this.height * clientHeight);
+            ctx.drawImage(this.#image, x, y, width, height);
         }
 
         ctx.restore();
     }
 
-    #onClick() {
+    contains(screenX, screenY) {
+        var x = this.position.x * clientWidth;
+        var y = this.position.y * clientHeight;
+
+        var width = this.width * clientWidth;
+        var height = this.height * clientHeight;
+
+        return screenX >= x && screenY >= y && screenX <= x + width && screenY <= y + height;
+    }
+
+    onClick(x, y) {
+        if (!this.contains(x, y)) return false;
+
         UI.ITEM_INFO.show(this.#title, this.#description, this.#image, this.#cost);
+
+        return true;
     }
 }
 
@@ -398,7 +434,7 @@ function lineWrap(text, ctx, maxWidth = Infinity) {
 export default class UI {
     static SHOP_BACKGROUND = new Box(0.25, 0.88, 0.5, 0.1, 5e-3, { background: "#aaa", opacity: 0.5, borderWidth: 5, borderColor: "white" }, (x, y) => true, () => true);
     /**
-     * @type {ShopItem[]}
+     * @type {{ ?: ShopItem[] }}
      */
     static SHOP_ITEMS = {};
     static ITEM_INFO = new ItemInfo();
@@ -424,7 +460,7 @@ export default class UI {
     }
 
     static onClick(x, y) {
-        return UI.SHOP_ITEMS[UI.CURRENT_CATEGORY].some(t => t.box.onClick(x, y)) ||
+        return UI.SHOP_ITEMS[UI.CURRENT_CATEGORY].some(t => t.onClick(x, y)) ||
         UI.SHOP_BACKGROUND.onClick(x, y) ||
         UI.ITEM_INFO.onClick(x, y);
     }
