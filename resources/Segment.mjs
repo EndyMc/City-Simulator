@@ -39,6 +39,8 @@ export class Segment {
 
         var minX = Math.min(...xPositions);
         var maxX = Math.max(...xPositions) + this.#left.width;
+
+        console.log(maxX - minX, maxX, minX);
         
         this.#width = (maxX - minX) / Camera.zoom;
     }
@@ -85,6 +87,28 @@ export class Segment {
         this.height = 0;
     }
 
+    addTile(tile) {
+        // Remove the old building
+        var duplicateIndex = this.#tiles.findIndex(t => t.x == tile.x && t.z == tile.z && t.y == tile.y);
+        if (duplicateIndex != -1) {
+            this.#tiles.splice(duplicateIndex, 1);
+        }
+        
+        // Add this new tile in the correct location
+        this.#tiles.push(tile);
+        
+        this.#tiles
+        .sort((a, b) => (a.y) - (b.y))
+        .sort((a, b) => (a.z) - (b.z));
+        
+        // Do the same as in the constructor...
+        this.calculateDimensions();
+        this.updateImage();
+
+        this.width = 0;
+        this.height = 0;
+    }
+
     calculateDimensions() {
         var positions = this.#tiles.map(t => t.getScreenPosition(true, { width: this.TILE_WIDTH, height: this.TILE_HEIGHT }));
 
@@ -100,8 +124,8 @@ export class Segment {
         this.#left = this.#tiles[positions.findIndex(t => t.x == minX)];
         this.#upper = this.#tiles[positions.findIndex(t => t.y == minY)];
 
-        this.#width = (maxX - minX) / Camera.zoom;
-        this.#height = (maxY - minY) / Camera.zoom;
+        this.#width = maxX - minX;
+        this.#height = maxY - minY;
 
         this.#canvas.width = this.#width;
         this.#canvas.height = this.#height;
@@ -158,7 +182,7 @@ export class Segment {
     }
 
     /**
-     * @type {LinkedList<Segment>}
+     * @type {LinkedList}
      */
     static SEGMENTS = new LinkedList();
 }

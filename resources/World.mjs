@@ -408,7 +408,11 @@ export class Camera {
             tile.height = 0;
 
             if (updatedImages[tile.imagePath] == undefined && !Images.cacheContains(tile.imagePath, tile.width, tile.height)) {
-                tile.image = Images.getImage(tile.imagePath, tile.width, tile.height);
+                try {
+                    tile.image = Images.getImage(tile.imagePath, tile.width, tile.height);
+                } catch(err) {
+                    console.error(tile);
+                }
             } else {
                 tile.image = Images.getImageFromCache(tile.imagePath, tile.width, tile.height);
             }

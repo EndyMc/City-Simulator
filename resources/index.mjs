@@ -18,7 +18,9 @@ window.init = async () => {
 
         Segment.SEGMENTS.forEach(s => {
             var tiles = s.getTiles();
-            if (tiles.includes(Cursor.getSelectedTile())) {
+            var selectedTile = Cursor.getSelectedTile();
+
+            if (tiles.includes(selectedTile)) {
                 tiles.forEach(x => x.render(ctx));
             } else {
                 var image = s.getImage();
@@ -27,6 +29,9 @@ window.init = async () => {
                 var bounds = s.getBounds();
                 if (bounds.x2 < 0 || bounds.y2 < 0 || bounds.x1 > clientWidth || bounds.y1 > clientHeight) return;
     
+//                ctx.strokeStyle = "red";
+//                ctx.strokeRect(bounds.x1, bounds.y1, s.width, s.height);
+
                 ctx.imageSmoothingEnabled = false;
                 ctx.drawImage(image, bounds.x1, bounds.y1, s.width, s.height);    
             }
@@ -59,6 +64,22 @@ window.init = async () => {
         }
 
         return false;
+    }
+
+    LayerManager.layers.world.onClick = (x, y) => {
+        if (UI.shownItem != undefined) {
+            var hoveredTile = Cursor.getSelectedTile();
+            var tile = new Drawable(hoveredTile.x, hoveredTile.y + 1, hoveredTile.z, UI.shownItem.imagePath, UI.shownItem.type);
+            var segments = Segment.SEGMENTS.filter(segment => segment.getTiles().includes(hoveredTile));
+
+            tile.image = UI.shownItem.image;
+
+            TileManager.addTiles(tile);
+            console.log(segments);
+            segments.forEach(s => s.addTile(tile));
+
+            UI.shownItem = undefined;
+        }
     }
 
     LayerManager.layers.world.onHover = (x, y) => {
@@ -113,6 +134,7 @@ window.init = async () => {
             item.title = x[1].title;
             item.description = x[1].description;
             item.image = x[1].image;
+            item.type = x[0];
 
             UI.SHOP_ITEMS[category].push(item);
         });

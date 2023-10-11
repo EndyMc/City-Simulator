@@ -1,36 +1,26 @@
 {
     "water": {
-        "bridge": {
+        "BOAT": {
+            "image": "images/boat_1.png",
+            "title": "Boat",
+            "description": "Allows travel over water, without getting wet in the process. Also allows carriages to travel over water."
+        },
+        "BRIDGE": {
             "image": "",
             "title": "Bridge",
             "description": "Allows travel over water, without getting wet in the process. Also allows carriages to travel over water."
         }
     },
     "civilisation": {
-        "test2": {
-            "image": "images/house.png",
-            "title": "Small House",
-            "description": "Allows travel over water, without getting wet in the process. Also allows carriages to travel over water."
-        },
-        "house": {
+        "HOUSE": {
             "image": "images/house.png",
             "title": "Large House",
             "description": "A basic house. Permits 4 people to live in it."
         },
-        "boat": {
-            "image": "images/boat_1.png",
-            "title": "Boat",
-            "description": "Allows travel over water, without getting wet in the process. Also allows carriages to travel over water."
-        },
-        "test1": {
-            "image": "images/boat_1.png",
-            "title": "T1",
-            "description": "Allows travel over water, without getting wet in the process. Also allows carriages to travel over water."
-        },
-        "test3": {
-            "image": "images/boat_1.png",
-            "title": "SuperLongText",
-            "description": "Allows travel over water, without getting wet in the process. Also allows carriages to travel over water."
+        "WALL": {
+            "image": "images/wall.png",
+            "title": "Wall",
+            "description": "..."
         }
     }
 }

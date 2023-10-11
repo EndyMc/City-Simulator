@@ -88,13 +88,24 @@ export class Drawable {
 
         var x = position.x - (offset == undefined ? 0 : offset.x);
         var y = position.y - (offset == undefined ? 0 : offset.y);
-        
+
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(this.image, x, y, this.width, this.height);
+        ctx.drawImage(this.image , x, y, this.width, this.height);
 
         if (this.selected) {
             // Hover effect
             ctx.drawImage(Images.getImageFromCache(Images.Internal.hover), position.x, position.y, this.width, this.height / 1.5);
+
+            // Shop item
+            if (UI.shownItem != undefined) {
+                var item = new Drawable(this.x, this.y + 1, this.z);
+                item.image = UI.shownItem.image;
+
+                ctx.save();
+                    ctx.globalAlpha = 0.8;
+                    item.render(ctx);
+                ctx.restore();
+            }
         }
 
         if (offset != undefined) {
@@ -391,6 +402,24 @@ export class Tile extends Drawable {
 export default class TileManager {
     static #tiles = [];
     static #tileHashes = {};
+
+    static addTiles(...tiles) {
+        TileManager.#tiles.push(...tiles);
+
+        TileManager.#tiles.sort((a, b) => (a.y) - (b.y));
+        TileManager.#tiles.sort((a, b) => (a.z) - (b.z));
+        
+        tiles.forEach(t => {
+            var hash = t.hash;
+            if (TileManager.#tileHashes[hash]?.includes(t)) return;
+
+            if (TileManager.#tileHashes[hash] == undefined) {
+                TileManager.#tileHashes[hash] = [];
+            }
+            TileManager.#tileHashes[hash].push(t);
+        });
+
+    }
 
     /**
      * @returns {Tile[]}

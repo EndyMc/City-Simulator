@@ -132,6 +132,7 @@ class Box {
 export class ShopItem {
     #image;
     #title;
+    #type;
     #description;
     #category;
     #cost;
@@ -150,6 +151,7 @@ export class ShopItem {
      * @param {string} path 
      */
     set image(path) {
+        this.imagePath = path;
         this.#image = Images.getImageFromCache(path);
     }
 
@@ -172,6 +174,13 @@ export class ShopItem {
      */
     set category(value) {
         this.#category = value;
+    }
+
+    /**
+     * @param {string} value 
+     */
+    set type(value) {
+        this.#type = value;
     }
     
 
@@ -199,6 +208,7 @@ export class ShopItem {
             document.body.style.cursor = "pointer";
             this.hover = true;
 
+            // Hover
             ctx.save();
             ctx.beginPath();
                 ctx.roundRect(x, y, width, height, 0.003 * clientWidth);
@@ -208,6 +218,7 @@ export class ShopItem {
                 ctx.fill();
             ctx.restore();
 
+            // Bubble with Item name
             ctx.beginPath();
                 ctx.roundRect(x - width / 2, y - height / 1.5, width * 2, height / 2, 5);
                 
@@ -224,7 +235,7 @@ export class ShopItem {
                 ctx.fillStyle = "black";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.font = "1vw Arial";
+                ctx.font = "2vw Arial";
                 ctx.fillText(this.#title, x + width / 2, y - height / 1.5 + height / 4, width * 2);
         } else if (this.hover == true) {
             this.hover = false;
@@ -252,6 +263,7 @@ export class ShopItem {
         if (!this.contains(x, y)) return false;
 
         UI.ITEM_INFO.show(this.#title, this.#description, this.#image, this.#cost);
+        UI.shownItem = { type: this.#type, image: this.#image, imagePath: this.imagePath };
 
         return true;
     }

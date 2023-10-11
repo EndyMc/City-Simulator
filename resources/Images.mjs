@@ -12,7 +12,8 @@ export default class Images {
     }
 
     static Houses = {
-        VARIANT_1: "images/house.png"
+        VARIANT_1: "images/house.png",
+        WALL: "images/wall.png"
     }
 
     static Boats = {
@@ -38,6 +39,8 @@ export default class Images {
     static getImage(src, width = 0, height = 0) {
         width = Math.round(width);
         height = Math.round(height);
+
+        if (src == undefined) console.trace();
 
         if (Images.cacheContains(src, width, height)) return Images.getImageFromCache(src, width, height);
         
