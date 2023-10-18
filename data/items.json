@@ -3,24 +3,34 @@
         "BOAT": {
             "image": "images/boat_1.png",
             "title": "Boat",
-            "description": "Allows travel over water, without getting wet in the process. Also allows carriages to travel over water."
+            "description": "Allows travel over water, without getting wet in the process. Also allows carriages to travel over water.",
+            "stackable": false
         },
         "BRIDGE": {
             "image": "",
             "title": "Bridge",
-            "description": "Allows travel over water, without getting wet in the process. Also allows carriages to travel over water."
+            "description": "Allows travel over water, without getting wet in the process. Also allows carriages to travel over water.",
+            "stackable": false
         }
     },
     "civilisation": {
         "HOUSE": {
             "image": "images/house.png",
             "title": "Large House",
-            "description": "A basic house. Permits 4 people to live in it."
+            "description": "A basic house. Permits 4 people to live in it.",
+            "stackable": false
         },
         "WALL": {
             "image": "images/wall.png",
             "title": "Wall",
-            "description": "..."
+            "description": "...",
+            "stackable": true
+        },
+        "PATH": {
+            "image": "images/straight_dirt_path.png",
+            "title": "Dirt Path",
+            "description": "A dirt path, this allows faster travel and buildings can be placed at it's sides.",
+            "stackable": false
         }
     }
 }

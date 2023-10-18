@@ -92,19 +92,28 @@ export class Drawable {
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(this.image , x, y, this.width, this.height);
 
-        if (this.selected) {
-            // Hover effect
-            ctx.drawImage(Images.getImageFromCache(Images.Internal.hover), position.x, position.y, this.width, this.height / 1.5);
+        if (offset == undefined && this.selected) {
+            var hasTileAbove = TileManager.getTile(this.x, this.y + 1, this.z) instanceof Building;
 
+            
             // Shop item
             if (UI.shownItem != undefined) {
-                var item = new Drawable(this.x, this.y + 1, this.z);
-                item.image = UI.shownItem.image;
+                if (hasTileAbove) {
+                    // Hover effect
+                    ctx.drawImage(Images.getImageFromCache(Images.Internal.RED_HOVER), position.x, position.y, this.width, this.height / 1.5);
 
-                ctx.save();
-                    ctx.globalAlpha = 0.8;
-                    item.render(ctx);
-                ctx.restore();
+                } else {
+                    // Hover effect
+                    ctx.drawImage(Images.getImageFromCache(Images.Internal.WHITE_HOVER), position.x, position.y, this.width, this.height / 1.5);
+
+                    var item = new Drawable(this.x, this.y + 1, this.z);
+                    item.image = UI.shownItem.image;
+    
+                    ctx.save();
+                        ctx.globalAlpha = 0.8;
+                        item.render(ctx);
+                    ctx.restore();
+                }
             }
         }
 
@@ -369,13 +378,13 @@ export class Drawable {
     }
 }
 
-export class House extends Drawable {
+export class Building extends Drawable {
     /**
      * @param {number} x 
      * @param {number} y 
      */
-    constructor(x, y, z, type = "VARIANT_1") {
-        super(x, y, z, Images.Houses[type], type);
+    constructor(x, y, z, imagePath, type = "") {
+        super(x, y, z, imagePath, type);
     }
 }
 
@@ -486,7 +495,7 @@ export default class TileManager {
         var candidates = [];
         segments.forEach(s => {
             var list = s.getTiles().filter(tile => {
-                if (!(tile instanceof Tile)) {
+                if ((tile instanceof Building && !tile.stackable) || tile instanceof Vehicle) {
                     // Don't check houses and other such entities
                     return false;
                 }
@@ -512,7 +521,7 @@ export default class TileManager {
         return candidates?.[0] || Cursor.getSelectedTile();
     }
 }
-window.t = TileManager;
+window.tm = TileManager;
 
 class Vehicle extends Drawable {
     constructor(x, y, z, type) {
