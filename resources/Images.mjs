@@ -1,6 +1,7 @@
 export default class Images {
     static Internal = {
-        hover: "internal:hover"
+        RED_HOVER: "internal:red_hover",
+        WHITE_HOVER: "internal:white_hover"
     }
 
     static Tiles = {
@@ -11,8 +12,14 @@ export default class Images {
         SAND: "images/sand.png"
     }
 
-    static Houses = {
-        VARIANT_1: "images/house.png"
+    static Buildings = {
+        SMALL_HOUSE: "images/house.png",
+        WALL: "images/wall.png",
+        PATH: "images/straight_dirt_path.png"
+    }
+
+    static UI = {
+        REMOVE: "images/remove.png"
     }
 
     static Boats = {
@@ -39,6 +46,8 @@ export default class Images {
         width = Math.round(width);
         height = Math.round(height);
 
+        if (src == undefined) console.trace();
+
         if (Images.cacheContains(src, width, height)) return Images.getImageFromCache(src, width, height);
         
         if (src.startsWith("internal:")) {
@@ -61,7 +70,7 @@ export default class Images {
     }
 
     static get textures() {
-        return [ ...Object.values(Images.Tiles), ...Object.values(Images.Houses), ...Object.values(Images.Boats), ...Object.values(Images.Internal) ];
+        return [ ...Object.values(Images.Tiles), ...Object.values(Images.Buildings), ...Object.values(Images.Boats), ...Object.values(Images.Internal), ...Object.values(Images.UI) ];
     }
 
     static getImageFromCache(src, width = 0, height = 0) {
@@ -99,7 +108,33 @@ function scalePixelated(image, width, height) {
     return canvas;
 }
 
-self[Images.Internal.hover] = () => {
+
+
+self[Images.Internal.RED_HOVER] = () => {
+    var canvas = document.createElement("canvas");
+
+    canvas.width = 64;
+    canvas.height = 48;
+
+    var ctx = canvas.getContext("2d");
+
+    var x = canvas.width / 2;
+    var y = canvas.height / 2;
+
+    ctx.fillStyle = "red";
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(x, 0);
+        ctx.lineTo(canvas.width, y);
+        ctx.lineTo(x, canvas.height);
+    ctx.closePath();
+    ctx.fill();
+
+    return canvas;
+}
+
+self[Images.Internal.WHITE_HOVER]   = () => {
     var canvas = document.createElement("canvas");
 
     canvas.width = 64;
@@ -122,4 +157,5 @@ self[Images.Internal.hover] = () => {
 
     return canvas;
 }
+
 window.images = Images;

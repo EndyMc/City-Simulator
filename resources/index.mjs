@@ -1,5 +1,5 @@
 import Images from "./Images.mjs";
-import TileManager, { Drawable, Tile } from "./Drawable.mjs";
+import TileManager, { Drawable, Tile, Building } from "./Drawable.mjs";
 import { Camera } from "./World.mjs";
 import { LayerManager } from "./Layer.mjs";
 import UI, { ShopItem } from "./UI.mjs";
@@ -7,6 +7,10 @@ import { LoadingMenu } from "./Menu.mjs";
 import { Segment } from "./Segment.mjs";
 
 window.init = async () => {
+    // Placing buildings, then zooming acts weird, the buildings are hidden when hovering over them and get removed when placing another building while in this state.
+    // When placing stackable buildings, sometimes a random tile gets the hover effect, sometimes even a place which is between 4 tiles
+    // *Most* buildings should not be able to be placed on water
+
     onresize();
     navigator.storage.persist();
 
@@ -18,7 +22,9 @@ window.init = async () => {
 
         Segment.SEGMENTS.forEach(s => {
             var tiles = s.getTiles();
-            if (tiles.includes(Cursor.getSelectedTile())) {
+            var selectedTile = Cursor.getSelectedTile();
+
+            if (tiles.includes(selectedTile)) {
                 tiles.forEach(x => x.render(ctx));
             } else {
                 var image = s.getImage();
@@ -27,6 +33,9 @@ window.init = async () => {
                 var bounds = s.getBounds();
                 if (bounds.x2 < 0 || bounds.y2 < 0 || bounds.x1 > clientWidth || bounds.y1 > clientHeight) return;
     
+//                ctx.strokeStyle = "red";
+//                ctx.strokeRect(bounds.x1, bounds.y1, s.width, s.height);
+
                 ctx.imageSmoothingEnabled = false;
                 ctx.drawImage(image, bounds.x1, bounds.y1, s.width, s.height);    
             }
@@ -59,6 +68,26 @@ window.init = async () => {
         }
 
         return false;
+    }
+
+    LayerManager.layers.world.onClick = (x, y) => {
+        if (UI.shownItem != undefined) {
+            var hoveredTile = Cursor.getSelectedTile();
+            var building = new Building(hoveredTile.x, hoveredTile.y + 1, hoveredTile.z, UI.shownItem.imagePath, UI.shownItem.type);
+            var segments = Segment.SEGMENTS.filter(segment => segment.getTiles().includes(hoveredTile));
+
+            building.image = UI.shownItem.image;
+            building.stackable = UI.shownItem.stackable;
+
+            TileManager.addTiles(building);
+            segments.forEach(s => s.addTile(building));
+
+//            UI.shownItem = undefined;
+//            UI.ITEM_INFO.hide();
+
+            LayerManager.shouldRenderLayer("world");
+            return true;
+        }
     }
 
     LayerManager.layers.world.onHover = (x, y) => {
@@ -113,6 +142,8 @@ window.init = async () => {
             item.title = x[1].title;
             item.description = x[1].description;
             item.image = x[1].image;
+            item.stackable = x[1].stackable;
+            item.type = x[0];
 
             UI.SHOP_ITEMS[category].push(item);
         });

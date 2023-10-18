@@ -88,13 +88,33 @@ export class Drawable {
 
         var x = position.x - (offset == undefined ? 0 : offset.x);
         var y = position.y - (offset == undefined ? 0 : offset.y);
-        
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(this.image, x, y, this.width, this.height);
 
-        if (this.selected) {
-            // Hover effect
-            ctx.drawImage(Images.getImageFromCache(Images.Internal.hover), position.x, position.y, this.width, this.height / 1.5);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(this.image , x, y, this.width, this.height);
+
+        if (offset == undefined && this.selected) {
+            var hasTileAbove = TileManager.getTile(this.x, this.y + 1, this.z) instanceof Building;
+
+            
+            // Shop item
+            if (UI.shownItem != undefined) {
+                if (hasTileAbove) {
+                    // Hover effect
+                    ctx.drawImage(Images.getImageFromCache(Images.Internal.RED_HOVER), position.x, position.y, this.width, this.height / 1.5);
+
+                } else {
+                    // Hover effect
+                    ctx.drawImage(Images.getImageFromCache(Images.Internal.WHITE_HOVER), position.x, position.y, this.width, this.height / 1.5);
+
+                    var item = new Drawable(this.x, this.y + 1, this.z);
+                    item.image = UI.shownItem.image;
+    
+                    ctx.save();
+                        ctx.globalAlpha = 0.8;
+                        item.render(ctx);
+                    ctx.restore();
+                }
+            }
         }
 
         if (offset != undefined) {
@@ -358,13 +378,13 @@ export class Drawable {
     }
 }
 
-export class House extends Drawable {
+export class Building extends Drawable {
     /**
      * @param {number} x 
      * @param {number} y 
      */
-    constructor(x, y, z, type = "VARIANT_1") {
-        super(x, y, z, Images.Houses[type], type);
+    constructor(x, y, z, imagePath, type = "") {
+        super(x, y, z, imagePath, type);
     }
 }
 
@@ -391,6 +411,24 @@ export class Tile extends Drawable {
 export default class TileManager {
     static #tiles = [];
     static #tileHashes = {};
+
+    static addTiles(...tiles) {
+        TileManager.#tiles.push(...tiles);
+
+        TileManager.#tiles.sort((a, b) => (a.y) - (b.y));
+        TileManager.#tiles.sort((a, b) => (a.z) - (b.z));
+        
+        tiles.forEach(t => {
+            var hash = t.hash;
+            if (TileManager.#tileHashes[hash]?.includes(t)) return;
+
+            if (TileManager.#tileHashes[hash] == undefined) {
+                TileManager.#tileHashes[hash] = [];
+            }
+            TileManager.#tileHashes[hash].push(t);
+        });
+
+    }
 
     /**
      * @returns {Tile[]}
@@ -457,7 +495,7 @@ export default class TileManager {
         var candidates = [];
         segments.forEach(s => {
             var list = s.getTiles().filter(tile => {
-                if (!(tile instanceof Tile)) {
+                if ((tile instanceof Building && !tile.stackable) || tile instanceof Vehicle) {
                     // Don't check houses and other such entities
                     return false;
                 }
@@ -483,7 +521,7 @@ export default class TileManager {
         return candidates?.[0] || Cursor.getSelectedTile();
     }
 }
-window.t = TileManager;
+window.tm = TileManager;
 
 class Vehicle extends Drawable {
     constructor(x, y, z, type) {
