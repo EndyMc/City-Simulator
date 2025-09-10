@@ -291,7 +291,8 @@ export class Camera {
      * @param {number} z 
      */
     static moveBy(x = 0, z = 0) {
-        var moved = Camera.moveTo(Camera.getPosition().x + x, Camera.getPosition().z + z);
+        var position = Camera.getPosition();
+        var moved = Camera.moveTo(position.x + x, position.z + z);
 
         if (!moved) return;
 
@@ -387,9 +388,29 @@ export class Camera {
 
     static set zoom(value) {
         var oldValue = Camera.#zoom;
+
+        var oldWidth = Camera.width;
+        var oldHeight = Camera.height;
         
         Camera.#zoom = value;
+
+        // Offset the camera making to top-left position the same as before zooming
+        Camera.moveTo(value / oldValue * Camera.getPosition().x, value / oldValue * Camera.getPosition().z);
+
+        // Offset the camera making it zoom towards the center
+/*        var widthDifference = oldWidth - Camera.width;
+        var heightDifference = oldHeight - Camera.height;
         
+        var xOffset = widthDifference / 2;
+        var yOffset = heightDifference / 2;
+        
+        Camera.moveBy(xOffset, yOffset);*/
+
+        console.log("; " + Camera.width + ", " + Camera.height);
+        console.debug(JSON.stringify(Camera.getPosition()));
+
+
+        // Check if the camera is out of bounds and correct it (?)
         var tile = new Drawable(World.MAX_X, World.WORLD_HEIGHT - World.WATER_LEVEL, World.MAX_Z);
         var middlePoint = tile.getMiddlePoint(true);
         if (Camera.#position.x != Math.min(middlePoint.x - clientWidth, Math.max(0, Camera.#position.x)) || Camera.#position.z != Math.min(middlePoint.y - clientHeight, Math.max(0, Camera.#position.z))) {
@@ -397,7 +418,9 @@ export class Camera {
             Camera.moveBy(0, 0);
             return;
         }
-        
+
+
+
         var updatedImages = {};
 
         Cursor.updateSelectedTile();
