@@ -1,7 +1,6 @@
-import TileManager, { Tile, House, Drawable } from "./Drawable.mjs";
+import TileManager, { Tile, Drawable } from "./Drawable.mjs";
 import Images from "./Images.mjs";
 import { LayerManager } from "./Layer.mjs";
-import { LoadingMenu } from "./Menu.mjs";
 import { Storage } from "./Storage.mjs";
 import { Cursor } from "./index.mjs";
 
@@ -66,7 +65,7 @@ export default class World {
             World.worker.postMessage({ function: "generate", params: [ startX, startZ, endX, endZ ] });
             World.worker.addEventListener("message", callback);
         });
-
+/*
         if (World.#world == undefined) World.#world = await Storage.get().getAll();
 
         tiles = World.#world.filter(t => t.x >= startX && t.x <= endX && t.z >= startZ && t.z <= endZ);        
@@ -196,7 +195,7 @@ export default class World {
 
         console.log("World Saved; %sms", performance.now() - start);
 
-        return tiles;
+        return tiles;*/
     }
 
     /**
@@ -249,32 +248,6 @@ export default class World {
         });
 
         return dirtTiles;
-    }
-
-    /**
-     * 
-     * @param {Tile[]} tiles 
-     * @returns {House[]}
-     */
-    static #spawnHouses(tiles) {
-        return [];
-        var houseTiles = [];
-        tiles.forEach(tile => {
-            if (tile.type == "GRASS" && Math.random() > 0.95) {
-                houseTiles.push(new House(tile.x, tile.y + 1, tile.z, "VARIANT_1"));
-            }
-        });
-
-        var depth = 5;
-        for (var i = 0; i < depth; i++) {
-            console.log("Spawning houses; Depth: %s/%s", i+1, depth);
-            houseTiles = houseTiles.filter(tile => {
-                var neighbours = houseTiles.filter(t => t.x >= tile.x - 2 && t.x <= tile.x + 2 && t.z >= tile.z - 2 && t.z <= tile.z + 2);
-                return neighbours.length > 3;
-            });
-        }
-
-        return houseTiles;
     }
 }
 

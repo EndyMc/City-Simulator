@@ -135,6 +135,7 @@ export class ShopItem {
     #type;
     #description;
     #category;
+    #stackable;
     #cost;
     
     static get aspectRatio() {
@@ -174,6 +175,10 @@ export class ShopItem {
      */
     set category(value) {
         this.#category = value;
+    }
+
+    set stackable(value) {
+        this.#stackable = value;
     }
 
     /**
@@ -263,7 +268,7 @@ export class ShopItem {
         if (!this.contains(x, y)) return false;
 
         UI.ITEM_INFO.show(this.#title, this.#description, this.#image, this.#cost);
-        UI.shownItem = { type: this.#type, image: this.#image, imagePath: this.imagePath };
+        UI.shownItem = { type: this.#type, image: this.#image, imagePath: this.imagePath, stackable: this.#stackable };
 
         return true;
     }
@@ -284,7 +289,7 @@ class ItemInfo {
 
     #box = new Box(this.position.x, this.position.y, this.width, this.height, 5e-3, { background: "white", opacity: 1 }, () => true, () => true);
     #buttons = {
-        exit: { x: this.position.x + 0.01 * ShopItem.aspectRatio, y: this.position.y + 0.01, w: this.#box.rawWidth / 5 * ShopItem.aspectRatio, h: this.#box.rawWidth / 5, onClick: () => { this.#visible = false; this.#box.visible = false; } }
+        exit: { x: this.position.x + 0.01 * ShopItem.aspectRatio, y: this.position.y + 0.01, w: this.#box.rawWidth / 5 * ShopItem.aspectRatio, h: this.#box.rawWidth / 5, onClick: () => this.hide() }
     };
 
     get box() {
@@ -397,8 +402,9 @@ class ItemInfo {
                 t.onClick();
                 return true;
             }
+
             return false;
-        });
+        }) || this.box.contains(x, y);
     }
 
     show(title, description, image, cost) {
@@ -409,6 +415,18 @@ class ItemInfo {
         this.#description = description;
         this.#image = image;
         this.#cost = cost;
+    }
+
+    hide() {
+        this.#visible = false;
+        this.#box.visible = false;
+
+        this.#title = "";
+        this.#description = "";
+        this.#image = "";
+        this.#cost = "";
+
+        UI.shownItem = undefined;
     }
 }
 
