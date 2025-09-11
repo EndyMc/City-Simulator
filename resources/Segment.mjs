@@ -153,13 +153,11 @@ export class Segment {
         var position = this.getScreenPosition(true);
         if (position == undefined) throw "Position out of bounds";
 
-        var cameraPosition = Camera.getPosition();
-        
         return {
-            x1: position.x - cameraPosition.x,
-            y1: position.y - cameraPosition.z,
-            x2: position.x + this.width - cameraPosition.x,
-            y2: position.y + this.height - cameraPosition.z
+            x1: position.x - Camera.position.x,
+            y1: position.y - Camera.position.z,
+            x2: position.x + this.width - Camera.position.x,
+            y2: position.y + this.height - Camera.position.z
         }
     }
 

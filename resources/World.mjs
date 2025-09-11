@@ -264,8 +264,7 @@ export class Camera {
      * @param {number} z 
      */
     static moveBy(x = 0, z = 0) {
-        var position = Camera.getPosition();
-        var moved = Camera.moveTo(position.x + x, position.z + z);
+        var moved = Camera.moveTo(Camera.position.x + x, Camera.position.z + z);
 
         if (!moved) return;
 
@@ -280,7 +279,7 @@ export class Camera {
      * @param {number} x 
      * @param {number} z 
      */
-    static moveTo(x = Camera.#position.x, z = Camera.#position.z) {
+    static moveTo(x = Camera.position.x, z = Camera.position.z) {
         // A tile with the maximum allowed coordinates
         var tile = new Drawable(World.MAX_X, World.WORLD_HEIGHT - World.WATER_LEVEL, World.MAX_Z);
         var middlePoint = tile.getMiddlePoint(true);
@@ -288,7 +287,7 @@ export class Camera {
         x = Math.min(middlePoint.x - clientWidth, Math.max(0, x));
         z = Math.min(middlePoint.y - clientHeight, Math.max(0, z));
 
-        if (Camera.#position.x == x && Camera.#position.z == z) return false;
+        if (Camera.position.x == x && Camera.position.z == z) return false;
 
         // Dynamic terrain generation
         // Not needed at the moment and only adds lag
@@ -332,11 +331,41 @@ export class Camera {
         return clientHeight / Camera.zoom;
     }
 
+    static get position() {
+        return Camera.#position;
+    }
+
     /**
      * @returns {{x: number, z: number}} The position of the camera
      */
     static getPosition() {
-        return Camera.#position;
+        throw "[Deprecated] Update this to Camera.position";
+    }
+
+    /**
+     * 
+     * @returns {{ x: number, z: number }} The position of the camera, regardless of zoom
+     */
+    static getAbsolutePosition() {
+        var translatedPosition = {
+            x: Camera.position.x / Camera.zoom,
+            z: Camera.position.z / Camera.zoom
+        }
+
+        return translatedPosition;
+    }
+
+    /**
+     * 
+     * @returns {{ width: number, height: number }} The size of the camera, regardless of zoom
+     */
+    static getAbsoluteSize() {
+        var translatedSize = {
+            width: clientWidth,
+            height: clientHeight
+        }
+
+        return translatedSize;
     }
 
     static zoomOut() {
@@ -360,33 +389,21 @@ export class Camera {
     }
 
     static set zoom(value) {
-        var oldValue = Camera.#zoom;
-
-        var oldWidth = Camera.width;
-        var oldHeight = Camera.height;
+        var oldValue = Camera.zoom;
         
         Camera.#zoom = value;
-
+        
         // Offset the camera making to top-left position the same as before zooming
-        Camera.moveTo(value / oldValue * Camera.getPosition().x, value / oldValue * Camera.getPosition().z);
-
+        Camera.moveTo(value / oldValue * Camera.position.x, value / oldValue * Camera.position.z);
+        
         // Offset the camera making it zoom towards the center
-/*        var widthDifference = oldWidth - Camera.width;
-        var heightDifference = oldHeight - Camera.height;
-        
-        var xOffset = widthDifference / 2;
-        var yOffset = heightDifference / 2;
-        
-        Camera.moveBy(xOffset, yOffset);*/
-
-        console.log("; " + Camera.width + ", " + Camera.height);
-        console.debug(JSON.stringify(Camera.getPosition()));
+        // The formula should be ( xDiff = (oldWidth - newWidth) / 2 ) but it doesn't work for some reason <---
 
 
         // Check if the camera is out of bounds and correct it (?)
         var tile = new Drawable(World.MAX_X, World.WORLD_HEIGHT - World.WATER_LEVEL, World.MAX_Z);
         var middlePoint = tile.getMiddlePoint(true);
-        if (Camera.#position.x != Math.min(middlePoint.x - clientWidth, Math.max(0, Camera.#position.x)) || Camera.#position.z != Math.min(middlePoint.y - clientHeight, Math.max(0, Camera.#position.z))) {
+        if (Camera.position.x != Math.min(middlePoint.x - clientWidth, Math.max(0, Camera.position.x)) || Camera.position.z != Math.min(middlePoint.y - clientHeight, Math.max(0, Camera.position.z))) {
             Camera.#zoom = oldValue;
             Camera.moveBy(0, 0);
             return;
@@ -417,3 +434,5 @@ export class Camera {
         });
     }
 }
+
+window.C = Camera;

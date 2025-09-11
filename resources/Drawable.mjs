@@ -202,12 +202,10 @@ export class Drawable {
         size.width = size.width || this.width;
         size.height = size.height || this.height;
 
-        var cameraPosition = Camera.getPosition();
-
-        var x = this.x * size.width - (ignoreOutOfBounds ? 0 : cameraPosition.x);
+        var x = this.x * size.width - (ignoreOutOfBounds ? 0 : Camera.position.x);
         if (!ignoreOutOfBounds && (x + size.width < 0 || x > clientWidth)) return;
 
-        var y = this.z * size.height * (2/3) - this.y * size.height / 3 - (ignoreOutOfBounds ? 0 : cameraPosition.z);
+        var y = this.z * size.height * (2/3) - this.y * size.height / 3 - (ignoreOutOfBounds ? 0 : Camera.position.z);
         if (!ignoreOutOfBounds && (y + size.height < 0 || y > clientHeight)) return;
 
         return { x, y };
