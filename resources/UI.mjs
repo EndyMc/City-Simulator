@@ -1,5 +1,6 @@
 import Images from "./Images.mjs";
 import { Cursor } from "./index.mjs";
+import { LayerManager } from "./Layer.mjs";
 
 class Box {
     #x = 0;
@@ -267,7 +268,7 @@ export class ShopItem {
     onClick(x, y) {
         if (!this.contains(x, y)) return false;
 
-        UI.ITEM_INFO.show(this.#title, this.#description, this.#image, this.#cost);
+        UI.ITEM_INFO.show(this.#title, this.#description, this.imagePath, this.#cost);
         UI.shownItem = { type: this.#type, image: this.#image, imagePath: this.imagePath, stackable: this.#stackable };
 
         return true;
@@ -407,24 +408,41 @@ class ItemInfo {
         }) || this.box.contains(x, y);
     }
 
+    /**
+     * Change what the shop-panel shows
+     * @param {string} title The item title
+     * @param {string} description The item description
+     * @param {string} image The image path
+     * @param {*} cost This is currently not used 
+     */
     show(title, description, image, cost) {
-        this.#visible = true;
+        if (typeof image != "string") throw "Incorrect image argument, should be a path.";
+/*        this.#visible = true;
         this.#box.visible = true;
-
+        
         this.#title = title;
         this.#description = description;
         this.#image = image;
-        this.#cost = cost;
+        this.#cost = cost;*/
+
+        document.querySelector("#shop-info-panel-name").innerText = title;
+        document.querySelector("#shop-info-panel-description").innerText = description;
+        document.querySelector("#shop-info-panel-image").src = image;
+
+        document.querySelector("#shop-info-panel").style.display = "grid";
     }
 
     hide() {
-        this.#visible = false;
+/*        this.#visible = false;
         this.#box.visible = false;
 
         this.#title = "";
         this.#description = "";
         this.#image = "";
-        this.#cost = "";
+        this.#cost = "";*/
+
+        document.querySelector("#shop-info-panel").style.display = "none";
+        LayerManager.shouldRenderLayer("world");
 
         UI.shownItem = undefined;
     }
@@ -503,3 +521,4 @@ export default class UI {
 UI.ITEM_INFO.box.visible = false;
 
 window.ui = UI;
+window.hideShopPanel = UI.ITEM_INFO.hide;
