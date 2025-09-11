@@ -19,3 +19,38 @@ canvas {
 
     width: 100vw;
 }
+
+#background-layer {
+    z-index: 0;
+}
+
+#world-layer {
+    z-index: 1;
+}
+
+#entity-layer {
+    z-index: 2;
+}
+
+#ui-layer {
+    z-index: 3;
+}
+
+#shop-info-panel {
+    width: 15vw;
+    height: 50vh;
+    
+    background-color: beige;
+    
+    z-index: 3;
+    top: calc((100vh - 50vh) / 2);
+    right: 0px;
+    
+    border-top-left-radius: 1vmin;
+    border-bottom-left-radius: 1vmin;
+    
+    display: none;
+    position: absolute;
+    
+    grid-template-rows: 1.5fr 3fr 6fr;
+}

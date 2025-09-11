@@ -1,7 +1,6 @@
-import TileManager, { Tile, House, Drawable } from "./Drawable.mjs";
+import TileManager, { Tile, Drawable } from "./Drawable.mjs";
 import Images from "./Images.mjs";
 import { LayerManager } from "./Layer.mjs";
-import { LoadingMenu } from "./Menu.mjs";
 import { Storage } from "./Storage.mjs";
 import { Cursor } from "./index.mjs";
 
@@ -66,7 +65,7 @@ export default class World {
             World.worker.postMessage({ function: "generate", params: [ startX, startZ, endX, endZ ] });
             World.worker.addEventListener("message", callback);
         });
-
+/*
         if (World.#world == undefined) World.#world = await Storage.get().getAll();
 
         tiles = World.#world.filter(t => t.x >= startX && t.x <= endX && t.z >= startZ && t.z <= endZ);        
@@ -196,7 +195,7 @@ export default class World {
 
         console.log("World Saved; %sms", performance.now() - start);
 
-        return tiles;
+        return tiles;*/
     }
 
     /**
@@ -250,32 +249,6 @@ export default class World {
 
         return dirtTiles;
     }
-
-    /**
-     * 
-     * @param {Tile[]} tiles 
-     * @returns {House[]}
-     */
-    static #spawnHouses(tiles) {
-        return [];
-        var houseTiles = [];
-        tiles.forEach(tile => {
-            if (tile.type == "GRASS" && Math.random() > 0.95) {
-                houseTiles.push(new House(tile.x, tile.y + 1, tile.z, "VARIANT_1"));
-            }
-        });
-
-        var depth = 5;
-        for (var i = 0; i < depth; i++) {
-            console.log("Spawning houses; Depth: %s/%s", i+1, depth);
-            houseTiles = houseTiles.filter(tile => {
-                var neighbours = houseTiles.filter(t => t.x >= tile.x - 2 && t.x <= tile.x + 2 && t.z >= tile.z - 2 && t.z <= tile.z + 2);
-                return neighbours.length > 3;
-            });
-        }
-
-        return houseTiles;
-    }
 }
 
 export class Camera {
@@ -291,7 +264,7 @@ export class Camera {
      * @param {number} z 
      */
     static moveBy(x = 0, z = 0) {
-        var moved = Camera.moveTo(Camera.getPosition().x + x, Camera.getPosition().z + z);
+        var moved = Camera.moveTo(Camera.position.x + x, Camera.position.z + z);
 
         if (!moved) return;
 
@@ -306,7 +279,7 @@ export class Camera {
      * @param {number} x 
      * @param {number} z 
      */
-    static moveTo(x = Camera.#position.x, z = Camera.#position.z) {
+    static moveTo(x = Camera.position.x, z = Camera.position.z) {
         // A tile with the maximum allowed coordinates
         var tile = new Drawable(World.MAX_X, World.WORLD_HEIGHT - World.WATER_LEVEL, World.MAX_Z);
         var middlePoint = tile.getMiddlePoint(true);
@@ -314,7 +287,7 @@ export class Camera {
         x = Math.min(middlePoint.x - clientWidth, Math.max(0, x));
         z = Math.min(middlePoint.y - clientHeight, Math.max(0, z));
 
-        if (Camera.#position.x == x && Camera.#position.z == z) return false;
+        if (Camera.position.x == x && Camera.position.z == z) return false;
 
         // Dynamic terrain generation
         // Not needed at the moment and only adds lag
@@ -358,11 +331,41 @@ export class Camera {
         return clientHeight / Camera.zoom;
     }
 
+    static get position() {
+        return Camera.#position;
+    }
+
     /**
      * @returns {{x: number, z: number}} The position of the camera
      */
     static getPosition() {
-        return Camera.#position;
+        throw "[Deprecated] Update this to Camera.position";
+    }
+
+    /**
+     * 
+     * @returns {{ x: number, z: number }} The position of the camera, regardless of zoom
+     */
+    static getAbsolutePosition() {
+        var translatedPosition = {
+            x: Camera.position.x / Camera.zoom,
+            z: Camera.position.z / Camera.zoom
+        }
+
+        return translatedPosition;
+    }
+
+    /**
+     * 
+     * @returns {{ width: number, height: number }} The size of the camera, regardless of zoom
+     */
+    static getAbsoluteSize() {
+        var translatedSize = {
+            width: clientWidth,
+            height: clientHeight
+        }
+
+        return translatedSize;
     }
 
     static zoomOut() {
@@ -386,18 +389,28 @@ export class Camera {
     }
 
     static set zoom(value) {
-        var oldValue = Camera.#zoom;
+        var oldValue = Camera.zoom;
         
         Camera.#zoom = value;
         
+        // Offset the camera making to top-left position the same as before zooming
+        Camera.moveTo(value / oldValue * Camera.position.x, value / oldValue * Camera.position.z);
+        
+        // Offset the camera making it zoom towards the center
+        // The formula should be ( xDiff = (oldWidth - newWidth) / 2 ) but it doesn't work for some reason <---
+
+
+        // Check if the camera is out of bounds and correct it (?)
         var tile = new Drawable(World.MAX_X, World.WORLD_HEIGHT - World.WATER_LEVEL, World.MAX_Z);
         var middlePoint = tile.getMiddlePoint(true);
-        if (Camera.#position.x != Math.min(middlePoint.x - clientWidth, Math.max(0, Camera.#position.x)) || Camera.#position.z != Math.min(middlePoint.y - clientHeight, Math.max(0, Camera.#position.z))) {
+        if (Camera.position.x != Math.min(middlePoint.x - clientWidth, Math.max(0, Camera.position.x)) || Camera.position.z != Math.min(middlePoint.y - clientHeight, Math.max(0, Camera.position.z))) {
             Camera.#zoom = oldValue;
             Camera.moveBy(0, 0);
             return;
         }
-        
+
+
+
         var updatedImages = {};
 
         Cursor.updateSelectedTile();
@@ -408,7 +421,11 @@ export class Camera {
             tile.height = 0;
 
             if (updatedImages[tile.imagePath] == undefined && !Images.cacheContains(tile.imagePath, tile.width, tile.height)) {
-                tile.image = Images.getImage(tile.imagePath, tile.width, tile.height);
+                try {
+                    tile.image = Images.getImage(tile.imagePath, tile.width, tile.height);
+                } catch(err) {
+                    console.error(tile);
+                }
             } else {
                 tile.image = Images.getImageFromCache(tile.imagePath, tile.width, tile.height);
             }
@@ -417,3 +434,5 @@ export class Camera {
         });
     }
 }
+
+window.C = Camera;

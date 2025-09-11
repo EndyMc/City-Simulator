@@ -21,5 +21,23 @@
         <canvas id="world-layer"></canvas>
         <canvas id="entity-layer"></canvas>
         <canvas id="ui-layer"></canvas>
+        <div id="shop-info-panel">
+            <div style="display: grid; grid-template-columns: 1fr 4fr; border-bottom: 1px dashed black;">
+                <img src="images/remove.png" draggable="false" style="margin: auto;cursor: pointer;aspect-ratio: 1;height: 75%;padding: 10%;" onclick="window.hideShopPanel();">
+                <span id="shop-info-panel-name" style="margin: auto;"></span>
+            </div>
+            <div style="display: grid;grid-template-columns: 3fr 2fr;border-bottom: 1px dashed black;">
+                <img id="shop-info-panel-image" draggable="false" style="margin: auto;width: 75%;image-rendering: pixelated;aspect-ratio: sqrt(3)/2;">
+                <div style="display: grid;grid-template-rows: repeat(3, 1fr);">
+                    <div>Resource 1</div>
+                    <div>Resource 2</div>
+                    <div>Resource 3 / Time / Manpower</div>
+                </div>
+            </div>
+            <div style="display: block;">
+                <h3 style="padding-left: 5%; margin: 0;">Description:</h3>
+                <span id="shop-info-panel-description" style="padding-left: 5%; padding-right: 5%; display: block; width: 90%;"></span>
+            </div>
+        </div>
     </body>
 </html>
